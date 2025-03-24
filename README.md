@@ -53,44 +53,63 @@ The assembler supports the following instructions:
 ## ▶️ Usage
 To assemble a file:
 ```sh
-./assembler input.asm output.hex
+./assembler input.as output.hex
 ```
 
-### 📝 Example assembly file (`input.asm`):
+### 📝 Example assembly file (`fibonacci.asm`):
 ```
-mov R1, #10  ; Move immediate value 10 into register 1
-mov R2, R1   ; Copy value from R1 to R2
-add R3, R2   ; Add R2 to R3
+mov R1, #0    ; First number (Fib[0] = 0)
+mov R2, #1    ; Second number (Fib[1] = 1)
+mov R3, #10   ; Number of terms (N = 10)
+loop:
+    prn R1     ; Print current Fibonacci number
+    add R1, R2 ; Compute next Fibonacci number
+    mov R4, R1 ; Store temporary result
+    mov R1, R2 ; Shift R1 to R2
+    mov R2, R4 ; Shift R2 to new value
+    dec R3     ; Decrease counter
+    bne loop   ; Repeat if R3 > 0
+stop
 ```
 
 ### 🏁 Output (`output.hex`):
 ```
-0x010A  ; MOV R1, #10
-0x0201  ; MOV R2, R1
-0x0302  ; ADD R3, R2
+0x0100  ; MOV R1, #0
+0x0101  ; MOV R2, #1
+0x010A  ; MOV R3, #10
+0x0D01  ; PRN R1
+0x0202  ; ADD R1, R2
+0x0104  ; MOV R4, R1
+0x0102  ; MOV R1, R2
+0x0103  ; MOV R2, R4
+0x0504  ; DEC R3
+0x0901  ; BNE loop
+0x0F00  ; STOP
 ```
 
 ## 📂 File Structure
 ```
 /Assembler
+│── header
+│   ├── assembler.h      # The main header for the assembler
+│   ├── labels.h         # Handles label definitions and lookups
+│   ├── lib.h            # Provides utility functions
+│   ├── opcode.h         # Stores opcode metadata
+│   ├── preprocessing.h  # Functions for preprocessing macros and labels
+│   ├── word.h           # Defines 24-bit word storage
 │── src
-│   ├── assembler.c  # Main assembler implementation
-│   ├── lexer.c      # Tokenizes input assembly code
-│   ├── parser.c     # Parses assembly instructions
-│   └── codegen.c    # Generates machine code
-│── include
-│   ├── assembler.h  # Header files
-│── examples
-│   ├── input.asm    # Sample assembly code
-│── Makefile
-│── README.md
+│   ├── assembler.c      # Core assembler implementation
+│   ├── labels.c         # Implementation of label handling
+│   ├── lib.c            # Library function implementations
+│   ├── main.c           # Entry point for the assembler
+│   ├── opcode.c         # Opcode processing and metadata retrieval
+│   ├── preprocessing.c  # Handles preprocessing operations
+│   ├── word.c           # 24-bit word structure operations
+│── inputs
+│   ├── input.as         # Sample assembly input file
+│── Makefile             # Build automation script
+│── README.md            # Project documentation
 ```
-
-## 🚀 Roadmap
-- [ ] ➕ Implement additional instructions (`mul`, `div`, `and`, etc.).
-- [ ] 🛠️ Enhance error handling and reporting.
-- [ ] 🖥️ Develop a simulator for execution testing.
-- [ ] 🎨 Create a GUI for easier usage.
 
 ## 🤝 Contributing
 Contributions are welcome! Feel free to open an issue or submit a pull request.
