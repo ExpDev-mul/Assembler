@@ -11,16 +11,19 @@
 #include "../header/lib.h"
 #include "../header/labels.h"
 #include "../header/preprocessing.h"
+#include "../header/errors.h"
+
+uint8_t errors; /* Prototype for errors */
 
 /* Retrieves mode of an argument */
 uint8_t get_mode(char *arg){
-    if (arg[0] == 'r' && isdigit(arg[1])) {
+    if (arg[0] == 'r') {
         /* Register case (e.g., r0, r2, r9) */
         return DIRECT_REGISTER_ADRS;
-    } else if (arg[0] == '#' && (isdigit(arg[1]) || (arg[1] == '-' && isdigit(arg[2])))) {
+    } else if (arg[0] == '#') {
         /* Immediate number case (e.g., #5, #-3) */
         return IMMEDIATE_ADRS;
-    } else if (arg[0] == '&' && (isdigit(arg[1]))) {
+    } else if (arg[0] == '&') {
         /* Relative addressing case (e.g, &START, &END) */
         return RELATIVE_ADRS;
     } else {
@@ -33,9 +36,14 @@ uint8_t get_mode(char *arg){
 
 /* Retrieves register state of an argument */
 uint8_t get_reg(char *arg){
-    if (arg[0] == 'r' && isdigit(arg[1])) {
+    if (arg[0] == 'r') {
         /* Register case (e.g., r0, r2, r9) */
-        return atoi(&arg[1]); /* Extract register number to be returned */
+        if (isdigit(arg[1])){
+            return atoi(&arg[1]); /* Extract register number to be returned */
+        } else {
+            error_with_code(5, &errors);
+            return 0;
+        }
     }
     
     return 0; /* Default return to 0 for safety */
@@ -49,6 +57,12 @@ uint8_t extract_number(char *arg) {
 
     /* Convert the substring after '#' to an integer */
     int num = atoi(arg + 1);
+    
+    if (arg[1] != '0' && num == 0){ /* We must distinguish between a 0 and an error case */
+        /* When atoi returns 0, it means the parsing went wrong. Meaning this is not a number. */
+        error_with_code(5, &errors);
+        return 0;
+    }
 
     /* Ensure it fits within 8 bits */
     if (num < 0 || num > 255) {
@@ -62,22 +76,23 @@ uint8_t extract_number(char *arg) {
 Command commands[]; /* Declare variable prototype, imported from opcode.h */
 
 void assemble(FILE* file){
+    int i; /* Loop variable */
+
     char buffer[BUFFER_SIZE]; /* Declare buffer for lines reading */
     uint8_t line = 100; /* Index of our current reading line */
     LabelNode *head = NULL; /* Head of our labels node */
-    int i;
-
-    FILE *preprocessed = tmpfile();
+    FILE *preprocessed = tmpfile(); /* Temporary file, to later be used to store the preprocessed file. */
+    uint8_t errors = 0; /* Counter for the numbers of errors during runtime */
     if (!preprocessed){
         perror("Failed to load a file for preprocessing.");
         return;
     }
 
-    preprocess(file, preprocessed, head);
-    rewind(preprocessed);
+    preprocess(file, preprocessed, head); /* Preprocess our file, and insert the data into the temporary file declared above. */
+    rewind(preprocessed); /* Rewind to the beginning of our file, to be read again. */
 
     printf("File after Preprocessing:\n");
-    printf("-------------------------------");
+    printf("-------------------------------\n");
     while (1){
         if (fgets(buffer, BUFFER_SIZE, preprocessed) == NULL){
             break; /* EOF has been reached, or an error has occured. */
@@ -85,8 +100,9 @@ void assemble(FILE* file){
 
         printf("%s", buffer);
     }
-    printf("-------------------------------");
+    printf("-------------------------------\n");
 
+    rewind(preprocessed); /* Rewind to the beginning of our file, to be read again. */
     while (1){
         if (fgets(buffer, BUFFER_SIZE, preprocessed) == NULL){
             break; /* EOF has been reached, or an error has occured. */
@@ -96,7 +112,8 @@ void assemble(FILE* file){
         buffer[strcspn(buffer, "\n")] = '\0';
 
         char *command = strtok(buffer, " "); /* The first token separated by a comma is our actual command. */
-        
+        bool is_command = false;
+
         if (command == NULL){
             continue;
         }
@@ -122,7 +139,7 @@ void assemble(FILE* file){
                 strncpy(metadata_buffer, metadata, sizeof(metadata_buffer) - 1);
                 metadata_buffer[sizeof(metadata_buffer) - 1] = '\0';  /* Ensure null termination */
 
-
+                /* Extract all metadata from variable */
                 char *current = strtok(metadata_buffer, ",");
                 while (current != NULL) {
                     Word *instruction = create_word_from_only_number((uint8_t)atoi(current)); 
@@ -151,6 +168,7 @@ void assemble(FILE* file){
         
         char *arg1 = strtok(NULL, ","); /* The 2nd token should correspond to the first argument */
         char *arg2 = strtok(NULL, ","); /* The 3rd token should correspond to the second argument */
+        char *arg3 = strtok(NULL, ","); /* Extra argument! (Strictly more than possible.) */
 
         for (i = 0; i < sizeof(commands)/sizeof(commands[0]); i++){ /* Iterate over the commands table */
             Command cmd = commands[i]; /* Declare a variable to store the current iterated command */
@@ -159,22 +177,37 @@ void assemble(FILE* file){
                     Define all of our values representing the instruction.
                     Later inserted into the word to create a machine instruction.
                 */
+                
+                is_command = true;
 
+                /* Command metadata */
                 uint8_t opcode = cmd.opcode;
                 uint8_t funct = cmd.funct;
-                uint8_t src_mode = 0;
-                uint8_t src_reg = 0;
-                uint8_t dest_mode = 0;
-                uint8_t dest_reg = 0;
+
+                /* Command arguments metadata */
+                uint8_t src_mode = -1;
+                uint8_t src_reg = -1;
+                uint8_t dest_mode = -1;
+                uint8_t dest_reg = -1;
+
+                /* Flags */
                 uint8_t A = 1;
                 uint8_t R = 0;
                 uint8_t E = 0;
 
+                uint8_t before_errors = errors;
                 switch (cmd.operands_num){ /* Respect different operand numbers */
                     case 2:
                         /* Commands with 2 operands */
                         if (arg1 == NULL || arg2 == NULL){
                             /* Missing arguments */
+                            error_with_code(0, &errors);
+                            break;
+                        }
+
+                        if (arg3 != NULL){
+                            /* Too many arguments */
+                            error_with_code(1, &errors);
                             break;
                         }
 
@@ -191,6 +224,13 @@ void assemble(FILE* file){
                         /* Command with 1 operand */
                         if (arg1 == NULL){
                             /* Missing argument */
+                            error_with_code(0, &errors);
+                            break;
+                        }
+
+                        if (arg2 != NULL){
+                            /* Too many arguments */
+                            error_with_code(1, &errors);
                             break;
                         }
 
@@ -199,9 +239,15 @@ void assemble(FILE* file){
                         dest_reg = get_reg(arg1);
                         break;
                     case 0:
+                        if (arg1 != NULL){
+                            /* Too many arguments */
+                            error_with_code(1, &errors);
+                            break;
+                        }
+
                         break;
                     default:
-                        printf("Invalid mode value: %d\n", cmd.operands_num);
+                        printf("Command %s contains too many operands.", cmd.name);
                         return;
                 }
             
@@ -210,6 +256,26 @@ void assemble(FILE* file){
                 */
 
                 /* printf("%i,%i,%i,%i,%i,%i,%i,%i,%i\n", opcode, src_mode, src_reg,  dest_mode, dest_reg, funct, A, R, E); */
+
+                if (errors > before_errors){
+                    /* There was an error throughout the switch statement */
+                    continue;
+                }
+
+                if (src_mode != -1 && !cmd.addressing_src[src_mode]){
+                    /* If there is a valid source mode yet not allowed */
+                    error_with_code(3, &errors);
+                    continue;
+                }
+
+                if (dest_mode != -1 && !cmd.addressing_dest[dest_mode]){
+                    /* If there is a valid source mode yet not allowed */
+                    error_with_code(4, &errors);
+                    continue;
+                }
+
+                if (src_mode == -1){ src_mode = 0; }
+                if (dest_mode == -1){ dest_mode = 0; }
 
                 Word *instruction = create_word(
                     opcode, src_mode, src_reg, 
@@ -256,7 +322,12 @@ void assemble(FILE* file){
                 break;
             }
         }
+
+        if (!is_command){
+            /* Invalid command name */
+            error_with_code(2, &errors);
+        }
     }
 
-    free_label_list(head); /* SEGMENTATION FAULT CAUSER */
+    free_label_list(head); /* Free labels list memory, that is allocated */
 }
