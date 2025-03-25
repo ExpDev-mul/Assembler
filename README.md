@@ -53,7 +53,7 @@ The assembler supports the following instructions:
 ## ▶️ Usage
 To assemble a file:
 ```sh
-./assembler input.as output.hex
+./main input.as output.hex
 ```
 
 ### 📝 Example assembly file (`fibonacci.asm`):
