@@ -5,6 +5,6 @@
 
 #include "../header/labels.h"
 
-void preprocess(FILE* file, FILE* temp, LabelNode* head);
+void preprocess(FILE* file, FILE* temp, LinkedList** labels, LinkedList** externs, uint8_t* errors);
 
 #endif

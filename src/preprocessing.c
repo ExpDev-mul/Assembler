@@ -5,21 +5,25 @@
 #include "../header/assembler.h"
 #include "../header/labels.h"
 #include "../header/lib.h"
+#include "../header/errors.h"
 
-void skip_leading_spaces(char **line){
-    while (**line == ' '){
-        (*line)++;
-    }
-}
-
-void preprocess(FILE* file, FILE* temp, LabelNode* head){
+void preprocess(FILE* file, FILE* temp, LinkedList** labels_ptr, LinkedList** externs_ptr, uint8_t* errors){
+    /* Line reading buffers */
     char buffer[BUFFER_SIZE];
     char buffer_copy[BUFFER_SIZE];
+
+    /* Macro buffers */
     char macro_buffer[BUFFER_SIZE*10];
     char macro_name[10];
-    uint8_t line = 100;
 
-    bool is_reading_macro = false;
+    LinkedList* labels = *labels_ptr;
+    LinkedList* externs = *externs_ptr;
+
+    LinkedList* macros = NULL;
+    bool is_reading_macro = false; /* Flag for whetehr we're reading a macro */
+
+    /* Buffer for externs, maximum 10 externs each of length 10 */
+    uint8_t line = 100; /* Line reading starts at 100 */
     while (1){
         if (fgets(buffer, BUFFER_SIZE, file) == NULL){
             break; /* EOF has been reached, or an error has occured. */
@@ -32,27 +36,22 @@ void preprocess(FILE* file, FILE* temp, LabelNode* head){
         char *prefix = strtok(buffer, " "); /* The first token separated by a comma is our actual command. */
         
         if (prefix == NULL){
-            continue;
+            continue; /* Empty line scenario */
         }
-
-        if (macro_name != NULL){
-            if (!strcmp(prefix, macro_name)){\
-                char *macro_buffer_ptr = macro_buffer;
-                fputs(macro_buffer_ptr, temp);
-                continue;
-            }
-        }
-        
         
         if (!strcmp(prefix, "mcro")){
             /* 
                 Macro declaration
             */
 
-            char *arg = strtok(NULL, " ");
+            char *arg = strtok(NULL, " "); /* Tokenize macro name */
 
-            strcpy(macro_name, arg);
-            is_reading_macro = true;
+            if (arg == NULL){
+                error_with_code(6, errors);
+            }
+
+            strcpy(macro_name, arg); /* Store the macro's name elsewehere */
+            is_reading_macro = true; /* Turn on the macro reading */
             continue;
         }
 
@@ -61,7 +60,11 @@ void preprocess(FILE* file, FILE* temp, LabelNode* head){
                 Macro declaration
             */
 
-            is_reading_macro = false;
+            char *macro_name_ptr = macro_name;
+            char *macro_buffer_ptr = macro_buffer;
+            add_label_string(&macros, macro_name_ptr, macro_buffer_ptr);
+            memset(macro_buffer, 0, sizeof(macro_buffer)); /* Clear marco buffer */
+            is_reading_macro = false; /* Stop macro reading */
             continue;
         }
 
@@ -70,7 +73,6 @@ void preprocess(FILE* file, FILE* temp, LabelNode* head){
             skip_leading_spaces(&buffer_copy_ptr);
             strncat(macro_buffer, buffer_copy_ptr , MACRO_SIZE);
             strncat(macro_buffer, "\n" , MACRO_SIZE);
-
             continue;
         }
 
@@ -82,7 +84,7 @@ void preprocess(FILE* file, FILE* temp, LabelNode* head){
             /* Remove the ':' at the end */
             char *pos = strchr(prefix, ':');
             *pos = '\0';
-            add_label(&head, prefix, line); /* Insert label into our linked list */
+            add_label_number(&labels, prefix, line); /* Insert label into our linked list */
 
             char *rest = strchr(buffer_copy, ':');
             rest++;
@@ -93,9 +95,37 @@ void preprocess(FILE* file, FILE* temp, LabelNode* head){
             continue;
         }
 
+        if (!strcmp(prefix, ".extern")){
+            /*
+                Externs
+            */
+
+            char *arg = strtok(NULL, " ");
+            skip_leading_spaces(&arg);
+            if (arg == NULL){
+                error_with_code(7, errors);
+                continue;
+            }
+
+            add_label_number(&externs, arg, 0);
+            continue;
+        }
+
+        LinkedList* macro_ptr = get_node_by_label(macros, prefix);
+        if (macro_ptr != NULL){
+            /* If the current label has a certain node it's attached to */
+            fputs(macro_ptr->value.buffer, temp);
+            fputc('\n', temp);
+            continue;
+        }
+        
         char *buffer_copy_ptr = buffer_copy;
         skip_leading_spaces(&buffer_copy_ptr);
         fputs(buffer_copy_ptr, temp);
         fputc('\n', temp);
     }
+
+    free_label_list(macros);
+    *labels_ptr = labels;
+    *externs_ptr = externs;
 }

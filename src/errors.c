@@ -5,13 +5,17 @@
 #include "../header/errors.h"
 
 char *errors_table[] = {
-    "Missing arguments", /* 0 */
+    /* 0 */
+    "Missing arguments",
     "Extraneous text after end of command",
     "Invalid command name",
     "The command can not perform this type of addressing for the source argument",
     "The command can not perform this type of addressing for the dest argument",
     
-    "Immediate number declaration does not follow up with a number" /* 5 */
+    /* 5 */
+    "Immediate number declaration does not follow up with a number",
+    "Macro declaration missing a name for the macro",
+    "Extern import missing an argument"
 };
 
 void error_with_code(int code, uint8_t *errors_counter){

@@ -1,2 +1,2 @@
-MAIN: add r3,r2
-      mov #5,r3
+.extern hello
+HELLO: add r3,r2

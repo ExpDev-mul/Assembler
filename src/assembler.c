@@ -80,7 +80,10 @@ void assemble(FILE* file){
 
     char buffer[BUFFER_SIZE]; /* Declare buffer for lines reading */
     uint8_t line = 100; /* Index of our current reading line */
-    LabelNode *head = NULL; /* Head of our labels node */
+
+    LinkedList *labels = NULL;
+    LinkedList *externs = NULL;
+
     FILE *preprocessed = tmpfile(); /* Temporary file, to later be used to store the preprocessed file. */
     uint8_t errors = 0; /* Counter for the numbers of errors during runtime */
     if (!preprocessed){
@@ -88,7 +91,7 @@ void assemble(FILE* file){
         return;
     }
 
-    preprocess(file, preprocessed, head); /* Preprocess our file, and insert the data into the temporary file declared above. */
+    preprocess(file, preprocessed, &labels, &externs, &errors); /* Preprocess our file, and insert the data into the temporary file declared above. */
     rewind(preprocessed); /* Rewind to the beginning of our file, to be read again. */
 
     printf("File after Preprocessing:\n");
@@ -167,7 +170,9 @@ void assemble(FILE* file){
         }
         
         char *arg1 = strtok(NULL, ","); /* The 2nd token should correspond to the first argument */
+        skip_leading_spaces(&arg1);
         char *arg2 = strtok(NULL, ","); /* The 3rd token should correspond to the second argument */
+        skip_leading_spaces(&arg2);
         char *arg3 = strtok(NULL, ","); /* Extra argument! (Strictly more than possible.) */
 
         for (i = 0; i < sizeof(commands)/sizeof(commands[0]); i++){ /* Iterate over the commands table */
@@ -297,19 +302,23 @@ void assemble(FILE* file){
 
                         extra_instruction = create_word_from_number(extract_number(arg1), A, R, E); /* Create the extra instruction from that number */
                         break;
-                    case DIRECT_ADRS:
+                    case DIRECT_ADRS: {
                         /*
 
                             Direct addressing, requires an extra word afterwards.
                         
                         */
 
+                        LinkedList* ptr = get_node_by_label(labels, arg1);
+
                         extra_instruction = create_word_from_number(
-                            get_line_by_label(head, arg1), /* SEGMENTATION FAULT CAUSER */
+                            ptr->value.number,
                             A, R, E
                         ); /* Define the extra instruction, using that number solely */
 
                         break;
+                    }
+                    
                     default:
                         break;
                 }
@@ -329,5 +338,5 @@ void assemble(FILE* file){
         }
     }
 
-    free_label_list(head); /* Free labels list memory, that is allocated */
+    free_label_list(labels); /* Free labels list memory, that is manually allocated */
 }
