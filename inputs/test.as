@@ -1,2 +1,3 @@
-.extern hello
-HELLO: add r3,r2
+.entry MAIN
+
+MAIN: add r3,r2

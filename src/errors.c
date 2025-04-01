@@ -15,7 +15,8 @@ char *errors_table[] = {
     /* 5 */
     "Immediate number declaration does not follow up with a number",
     "Macro declaration missing a name for the macro",
-    "Extern import missing an argument"
+    "Extern import missing an argument",
+    "Entry missing an argument",
 };
 
 void error_with_code(int code, uint8_t *errors_counter){

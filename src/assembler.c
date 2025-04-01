@@ -93,7 +93,7 @@ void assemble(FILE* file){
 
     preprocess(file, preprocessed, &labels, &externs, &errors); /* Preprocess our file, and insert the data into the temporary file declared above. */
     rewind(preprocessed); /* Rewind to the beginning of our file, to be read again. */
-
+    
     printf("File after Preprocessing:\n");
     printf("-------------------------------\n");
     while (1){
@@ -310,11 +310,23 @@ void assemble(FILE* file){
                         */
 
                         LinkedList* ptr = get_node_by_label(labels, arg1);
-
-                        extra_instruction = create_word_from_number(
-                            ptr->value.number,
-                            A, R, E
-                        ); /* Define the extra instruction, using that number solely */
+                        
+                        if (ptr != NULL){
+                            /* If this is a label */
+                            extra_instruction = create_word_from_number(
+                                ptr->value.number,
+                                0, 1, 0
+                            ); /* Define the extra instruction, using that number solely */
+                        } else {
+                            ptr = get_node_by_label(externs, arg1); /* Search in externs */
+                            if (ptr != NULL){
+                                extra_instruction = create_word_from_number(
+                                    ptr->value.number,
+                                    0, 0, 1
+                                ); /* Define the extra instruction, using that number solely */
+                            }
+                        }
+                        
 
                         break;
                     }

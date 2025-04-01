@@ -19,6 +19,7 @@ void preprocess(FILE* file, FILE* temp, LinkedList** labels_ptr, LinkedList** ex
     LinkedList* labels = *labels_ptr;
     LinkedList* externs = *externs_ptr;
 
+    LinkedList* entries = NULL;
     LinkedList* macros = NULL;
     bool is_reading_macro = false; /* Flag for whetehr we're reading a macro */
 
@@ -111,11 +112,26 @@ void preprocess(FILE* file, FILE* temp, LinkedList** labels_ptr, LinkedList** ex
             continue;
         }
 
+        if (!strcmp(prefix, ".entry")){
+            /*
+                Entries
+            */
+
+            char *arg = strtok(NULL, " ");
+            skip_leading_spaces(&arg);
+            if (arg == NULL){
+                error_with_code(8, errors);
+                continue;
+            }
+
+            add_label_number(&entries, arg, 0);
+            continue;
+        }
+
         LinkedList* macro_ptr = get_node_by_label(macros, prefix);
         if (macro_ptr != NULL){
             /* If the current label has a certain node it's attached to */
             fputs(macro_ptr->value.buffer, temp);
-            fputc('\n', temp);
             continue;
         }
         
@@ -128,4 +144,16 @@ void preprocess(FILE* file, FILE* temp, LinkedList** labels_ptr, LinkedList** ex
     free_label_list(macros);
     *labels_ptr = labels;
     *externs_ptr = externs;
+
+    LinkedList* curr = entries;
+    while (curr != NULL){
+        LinkedList* label = get_node_by_label(labels, curr->label); /* Search the current .entry argument within the labels */
+        if (label != NULL){
+            curr->value.number = label->value.number; /* Assign the line of the label, to the value of the entry */
+        }
+
+        curr = curr->next;
+    }
+
+    print_labels(entries);
 }
