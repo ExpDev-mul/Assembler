@@ -35,13 +35,13 @@ uint8_t get_mode(char *arg){
 }
 
 /* Retrieves register state of an argument */
-uint8_t get_reg(char *arg){
+uint8_t get_reg(char *arg, char* buffer){
     if (arg[0] == 'r') {
         /* Register case (e.g., r0, r2, r9) */
         if (isdigit(arg[1])){
             return atoi(&arg[1]); /* Extract register number to be returned */
         } else {
-            error_with_code(5, &errors);
+            error_with_code(5, buffer, &errors);
             return 0;
         }
     }
@@ -49,8 +49,14 @@ uint8_t get_reg(char *arg){
     return 0; /* Default return to 0 for safety */
 }
 
-uint8_t extract_number(char *arg) {
-    if (arg == NULL || arg[0] != '#') {
+int8_t extract_number(char *arg, char* buffer) {
+    if (arg == NULL) {
+        fprintf(stderr, "Argument is null\n");
+        printf("%s\n", buffer);
+        exit(EXIT_FAILURE);
+    }
+
+    if (arg[0] != '#'){
         fprintf(stderr, "Invalid input format\n");
         exit(EXIT_FAILURE);
     }
@@ -60,26 +66,22 @@ uint8_t extract_number(char *arg) {
     
     if (arg[1] != '0' && num == 0){ /* We must distinguish between a 0 and an error case */
         /* When atoi returns 0, it means the parsing went wrong. Meaning this is not a number. */
-        error_with_code(5, &errors);
+        error_with_code(5, buffer, &errors);
         return 0;
     }
 
-    /* Ensure it fits within 8 bits */
-    if (num < 0 || num > 255) {
-        fprintf(stderr, "Number out of range for uint8_t\n");
-        exit(EXIT_FAILURE);
-    }
-
-    return (uint8_t)num;
+    return (int8_t)num;
 }
 
 Command commands[]; /* Declare variable prototype, imported from opcode.h */
 
-void assemble(FILE* file){
+void assemble(FILE* file, FILE* ob){
     int i; /* Loop variable */
 
     char buffer[BUFFER_SIZE]; /* Declare buffer for lines reading */
-    uint8_t line = 100; /* Index of our current reading line */
+    uint8_t line = 0; /* Index of our current reading line */
+
+    uint8_t memory_line = 100;
 
     LinkedList *labels = NULL;
     LinkedList *externs = NULL;
@@ -87,7 +89,7 @@ void assemble(FILE* file){
     FILE *preprocessed = tmpfile(); /* Temporary file, to later be used to store the preprocessed file. */
     uint8_t errors = 0; /* Counter for the numbers of errors during runtime */
     if (!preprocessed){
-        perror("Failed to load a file for preprocessing.");
+        perror("Failed to load a file for preprocessing.\n");
         return;
     }
 
@@ -145,8 +147,8 @@ void assemble(FILE* file){
                 /* Extract all metadata from variable */
                 char *current = strtok(metadata_buffer, ",");
                 while (current != NULL) {
-                    Word *instruction = create_word_from_only_number((uint8_t)atoi(current)); 
-                    print_word_hex(instruction);
+                    Word *instruction = create_word_from_only_number((int8_t)atoi(current)); 
+                    print_word_hex(instruction, &memory_line, ob);
 
                     current = strtok(NULL, ",");
                 }
@@ -159,8 +161,8 @@ void assemble(FILE* file){
 
                 metadata++; /* Advance to ignore the opening (") symbol */
                 while (*metadata != '"' && *metadata != '\0') { /* Loop until closing quote or end of string */
-                    Word *instruction = create_word_from_only_number((uint8_t)(*metadata)); /* Convert character to instruction */
-                    print_word_hex(instruction); /* Print the instruction */
+                    Word *instruction = create_word_from_only_number((int8_t)(*metadata)); /* Convert character to instruction */
+                    print_word_hex(instruction, &memory_line, ob); /* Print the instruction */
                     
                     metadata++; /* Move to the next character */
                 }
@@ -190,10 +192,10 @@ void assemble(FILE* file){
                 uint8_t funct = cmd.funct;
 
                 /* Command arguments metadata */
-                uint8_t src_mode = -1;
-                uint8_t src_reg = -1;
-                uint8_t dest_mode = -1;
-                uint8_t dest_reg = -1;
+                int8_t src_mode = -1;
+                uint8_t src_reg = 0;
+                int8_t dest_mode = -1;
+                uint8_t dest_reg = 0;
 
                 /* Flags */
                 uint8_t A = 1;
@@ -206,47 +208,47 @@ void assemble(FILE* file){
                         /* Commands with 2 operands */
                         if (arg1 == NULL || arg2 == NULL){
                             /* Missing arguments */
-                            error_with_code(0, &errors);
+                            error_with_code(0, buffer, &errors);
                             break;
                         }
 
                         if (arg3 != NULL){
                             /* Too many arguments */
-                            error_with_code(1, &errors);
+                            error_with_code(1, buffer, &errors);
                             break;
                         }
 
                         /* Extract source metadata */
                         src_mode = get_mode(arg1);
-                        src_reg = get_reg(arg1);
+                        src_reg = get_reg(arg1, buffer);
 
                         /* Extract destination metadata */
                         dest_mode = get_mode(arg2);
-                        dest_reg = get_reg(arg2);
+                        dest_reg = get_reg(arg2, buffer);
                         break;
 
                     case 1:
                         /* Command with 1 operand */
                         if (arg1 == NULL){
                             /* Missing argument */
-                            error_with_code(0, &errors);
+                            error_with_code(0, buffer, &errors);
                             break;
                         }
 
                         if (arg2 != NULL){
                             /* Too many arguments */
-                            error_with_code(1, &errors);
+                            error_with_code(1, buffer, &errors);
                             break;
                         }
 
                         /* Extract destination metadata */
                         dest_mode = get_mode(arg1);
-                        dest_reg = get_reg(arg1);
+                        dest_reg = get_reg(arg1, buffer);
                         break;
                     case 0:
                         if (arg1 != NULL){
                             /* Too many arguments */
-                            error_with_code(1, &errors);
+                            error_with_code(1, buffer, &errors);
                             break;
                         }
 
@@ -269,26 +271,15 @@ void assemble(FILE* file){
 
                 if (src_mode != -1 && !cmd.addressing_src[src_mode]){
                     /* If there is a valid source mode yet not allowed */
-                    error_with_code(3, &errors);
+                    error_with_code(3, buffer, &errors);
                     continue;
                 }
 
                 if (dest_mode != -1 && !cmd.addressing_dest[dest_mode]){
-                    /* If there is a valid source mode yet not allowed */
-                    error_with_code(4, &errors);
+                    /* If there is a valid dest mode yet not allowed */
+                    error_with_code(4, buffer, &errors);
                     continue;
                 }
-
-                if (src_mode == -1){ src_mode = 0; }
-                if (dest_mode == -1){ dest_mode = 0; }
-
-                Word *instruction = create_word(
-                    opcode, src_mode, src_reg, 
-                    dest_mode, dest_reg,
-                    funct, A, R, E
-                ); /* Create instruction with respect to the metadata of the line */
-
-                print_word_hex(instruction); /* Output the line in hexadecimal form */
 
                 /* Switch block scope variables to be reused */
                 Word *extra_instruction = NULL; /* An extra instruction (only for certain types of commands) */
@@ -300,7 +291,7 @@ void assemble(FILE* file){
                     
                         */
 
-                        extra_instruction = create_word_from_number(extract_number(arg1), A, R, E); /* Create the extra instruction from that number */
+                        extra_instruction = create_word_from_number(extract_number(arg1, buffer), A, R, E); /* Create the extra instruction from that number */
                         break;
                     case DIRECT_ADRS: {
                         /*
@@ -335,9 +326,75 @@ void assemble(FILE* file){
                         break;
                 }
 
+                if (extra_instruction == NULL){
+                    /*
+                        The only possible scenario now is 2 operands, and a dest_mode left untreated.
+                        Therefore we must also look into the dest_mode, in this scenario.
+                    */
+
+                    switch (dest_mode){
+                        case IMMEDIATE_ADRS:
+                            /*
+                            
+                                Immediate addressing requires an extra word afterwards.
+                        
+                            */
+    
+                            extra_instruction = create_word_from_number(extract_number(arg2, buffer), A, R, E); /* Create the extra instruction from that number */
+                            break;
+                        case DIRECT_ADRS: {
+                            /*
+    
+                                Direct addressing, requires an extra word afterwards.
+                            
+                            */
+    
+                            LinkedList* ptr = get_node_by_label(labels, arg2);
+                            
+                            if (ptr != NULL){
+                                /* If this is a label */
+                                extra_instruction = create_word_from_number(
+                                    ptr->value.number,
+                                    0, 1, 0
+                                ); /* Define the extra instruction, using that number solely */
+                            } else {
+                                ptr = get_node_by_label(externs, arg2); /* Search in externs */
+                                if (ptr != NULL){
+                                    extra_instruction = create_word_from_number(
+                                        ptr->value.number,
+                                        0, 0, 1
+                                    ); /* Define the extra instruction, using that number solely */
+                                }
+                            }
+                            
+    
+                            break;
+                        }
+                        
+                        default:
+                            break;
+                    }
+                }
+
+
+                /*
+                    Initialize values back to 0 (the -1 was a temporary flag for the absence of such mode!)
+                */
+               
+                if (src_mode == -1){ src_mode = 0; }
+                if (dest_mode == -1){ dest_mode = 0; }
+
+                Word *instruction = create_word(
+                    opcode, src_mode, src_reg, 
+                    dest_mode, dest_reg,
+                    funct, A, R, E
+                ); /* Create instruction with respect to the metadata of the line */
+
+                print_word_hex(instruction, &memory_line, ob); /* Output the line in hexadecimal form */
+
                 if (extra_instruction != NULL){
                     /* If there is an extra instruction, we will output it */
-                    print_word_hex(extra_instruction);
+                    print_word_hex(extra_instruction, &memory_line, ob);
                 }
 
                 break;
@@ -346,7 +403,7 @@ void assemble(FILE* file){
 
         if (!is_command){
             /* Invalid command name */
-            error_with_code(2, &errors);
+            error_with_code(2, buffer, &errors);
         }
     }
 

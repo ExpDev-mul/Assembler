@@ -24,7 +24,7 @@ Word* create_word(uint8_t opcode, uint8_t src_mode, uint8_t src_reg,
     return inst;
 }
 
-Word* create_word_from_number(uint8_t number,
+Word* create_word_from_number(int8_t number,
                                     uint8_t A, uint8_t R, uint8_t E) {
     Word* inst = (Word*)malloc(sizeof(Word));
     if (inst == NULL) {
@@ -44,7 +44,7 @@ Word* create_word_from_number(uint8_t number,
     return inst;
 }
 
-Word* create_word_from_only_number(uint8_t number) {
+Word* create_word_from_only_number(int8_t number) {
     Word* inst = (Word*)malloc(sizeof(Word));
     if (inst == NULL) {
         perror("Memory allocation failed");
@@ -67,6 +67,7 @@ uint32_t word_to_hex(Word* inst) {
     return inst->word & 0xFFFFFF;
 }
 
-void print_word_hex(Word* inst) {
-    printf("0x%06X\n", word_to_hex(inst));
+void print_word_hex(Word* inst, uint8_t *line, FILE* file) {
+    fprintf(file, "%07d %06x\n", *line, word_to_hex(inst));
+    (*line)++;
 }

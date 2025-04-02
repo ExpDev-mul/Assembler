@@ -12,10 +12,10 @@ Word* create_word(uint8_t opcode, uint8_t src_mode, uint8_t src_reg,
     uint8_t dest_mode, uint8_t dest_reg, uint8_t funct,
     uint8_t A, uint8_t R, uint8_t E);
 
-Word* create_word_from_number(uint8_t number,
+Word* create_word_from_number(int8_t number,
     uint8_t A, uint8_t R, uint8_t E);
 
-Word* create_word_from_only_number(uint8_t number);
+Word* create_word_from_only_number(int8_t number);
 
 /* Free an instruction from memory */
 void free_word(Word* inst);
@@ -24,6 +24,6 @@ void free_word(Word* inst);
 uint32_t word_to_hex(Word* inst);
 
 /* Print out the hexadecimal form of an instruction, mainly for debugging */
-void print_word_hex(Word* inst);
+void print_word_hex(Word* inst, uint8_t *line, FILE* file);
 
 #endif /* WORD_H */

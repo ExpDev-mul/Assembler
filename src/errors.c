@@ -19,7 +19,7 @@ char *errors_table[] = {
     "Entry missing an argument",
 };
 
-void error_with_code(int code, uint8_t *errors_counter){
+void error_with_code(int code, char* line_buffer, uint8_t *errors_counter){
     int errors_table_size = sizeof(errors_table)/sizeof(errors_table[0]);
     if (code < 0 || code >= errors_table_size){
         /* Ensure error code is within bounds */
@@ -27,5 +27,5 @@ void error_with_code(int code, uint8_t *errors_counter){
     }
 
     (*errors_counter)++;
-    printf("Error: %s\n", errors_table[code]); /* Output current error */
+    printf("Error at Line: %s\n%s\n", line_buffer, errors_table[code]); /* Output current error */
 }

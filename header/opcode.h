@@ -40,8 +40,8 @@ Command commands[] = {
     {"prn", 13, EMPTY_SPOT, 1, {1, 1, 0, 1}, {0, 0, 0, 0}},
 
     /* No operands */
-    {"rts", 14, EMPTY_SPOT, 1, {0, 0, 0, 0}, {0, 0, 0, 0}},
-    {"stop", 15, EMPTY_SPOT, 1, {0, 0, 0, 0}, {0, 0, 0, 0}},
+    {"rts", 14, EMPTY_SPOT, 0, {0, 0, 0, 0}, {0, 0, 0, 0}},
+    {"stop", 15, EMPTY_SPOT, 0, {0, 0, 0, 0}, {0, 0, 0, 0}},
 };
 
 

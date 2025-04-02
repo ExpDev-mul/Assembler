@@ -24,7 +24,7 @@ void preprocess(FILE* file, FILE* temp, LinkedList** labels_ptr, LinkedList** ex
     bool is_reading_macro = false; /* Flag for whetehr we're reading a macro */
 
     /* Buffer for externs, maximum 10 externs each of length 10 */
-    uint8_t line = 100; /* Line reading starts at 100 */
+    uint8_t line = 100; /* Line reading starts at 0 */
     while (1){
         if (fgets(buffer, BUFFER_SIZE, file) == NULL){
             break; /* EOF has been reached, or an error has occured. */
@@ -39,6 +39,11 @@ void preprocess(FILE* file, FILE* temp, LinkedList** labels_ptr, LinkedList** ex
         if (prefix == NULL){
             continue; /* Empty line scenario */
         }
+
+        if (prefix[0] == ';'){
+            /* This is a comment, skip to next line! */
+            continue;
+        }
         
         if (!strcmp(prefix, "mcro")){
             /* 
@@ -48,7 +53,7 @@ void preprocess(FILE* file, FILE* temp, LinkedList** labels_ptr, LinkedList** ex
             char *arg = strtok(NULL, " "); /* Tokenize macro name */
 
             if (arg == NULL){
-                error_with_code(6, errors);
+                error_with_code(6, buffer_copy, errors);
             }
 
             strcpy(macro_name, arg); /* Store the macro's name elsewehere */
@@ -104,7 +109,7 @@ void preprocess(FILE* file, FILE* temp, LinkedList** labels_ptr, LinkedList** ex
             char *arg = strtok(NULL, " ");
             skip_leading_spaces(&arg);
             if (arg == NULL){
-                error_with_code(7, errors);
+                error_with_code(7, buffer_copy, errors);
                 continue;
             }
 
@@ -120,7 +125,7 @@ void preprocess(FILE* file, FILE* temp, LinkedList** labels_ptr, LinkedList** ex
             char *arg = strtok(NULL, " ");
             skip_leading_spaces(&arg);
             if (arg == NULL){
-                error_with_code(8, errors);
+                error_with_code(8, buffer_copy, errors);
                 continue;
             }
 
@@ -154,6 +159,4 @@ void preprocess(FILE* file, FILE* temp, LinkedList** labels_ptr, LinkedList** ex
 
         curr = curr->next;
     }
-
-    print_labels(entries);
 }

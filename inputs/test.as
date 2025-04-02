@@ -1,3 +1,2 @@
-.entry MAIN
-
-MAIN: add r3,r2
+MAIN: add r3, LIST
+LIST: .data 6,-9
