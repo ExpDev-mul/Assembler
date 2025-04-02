@@ -75,39 +75,28 @@ int8_t extract_number(char *arg, char* buffer) {
 
 Command commands[]; /* Declare variable prototype, imported from opcode.h */
 
-void assemble(FILE* file, FILE* ob){
+void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext){
     int i; /* Loop variable */
 
     char buffer[BUFFER_SIZE]; /* Declare buffer for lines reading */
-    uint8_t line = 0; /* Index of our current reading line */
 
-    uint8_t memory_line = 100;
+    uint8_t line = START_LINE; /* Index of our current reading line */
+    uint8_t memory_line = START_LINE;
 
     LinkedList *labels = NULL;
+    LinkedList *entries = NULL;
     LinkedList *externs = NULL;
 
-    FILE *preprocessed = tmpfile(); /* Temporary file, to later be used to store the preprocessed file. */
+    FILE *preprocessed = am; /* After macro file, we'll denote 'preprocessed' */
     uint8_t errors = 0; /* Counter for the numbers of errors during runtime */
     if (!preprocessed){
         perror("Failed to load a file for preprocessing.\n");
         return;
     }
 
-    preprocess(file, preprocessed, &labels, &externs, &errors); /* Preprocess our file, and insert the data into the temporary file declared above. */
+    preprocess(file, preprocessed, &labels, &entries, &externs, &errors); /* Preprocess our file, and insert the data into the temporary file declared above. */
     rewind(preprocessed); /* Rewind to the beginning of our file, to be read again. */
-    
-    printf("File after Preprocessing:\n");
-    printf("-------------------------------\n");
-    while (1){
-        if (fgets(buffer, BUFFER_SIZE, preprocessed) == NULL){
-            break; /* EOF has been reached, or an error has occured. */
-        }
 
-        printf("%s", buffer);
-    }
-    printf("-------------------------------\n");
-
-    rewind(preprocessed); /* Rewind to the beginning of our file, to be read again. */
     while (1){
         if (fgets(buffer, BUFFER_SIZE, preprocessed) == NULL){
             break; /* EOF has been reached, or an error has occured. */
@@ -166,6 +155,10 @@ void assemble(FILE* file, FILE* ob){
                     
                     metadata++; /* Move to the next character */
                 }
+
+                /* Print out null terminator */
+                Word *instruction = create_word_from_only_number(0); /* Null terminator is assigned the 0 value */
+                print_word_hex(instruction, &memory_line, ob); /* Print the instruction */
             }
             
             continue;
@@ -326,7 +319,14 @@ void assemble(FILE* file, FILE* ob){
                         break;
                 }
 
-                if (extra_instruction == NULL){
+                if (extra_instruction != NULL){
+                    /* If there is an extra instruction, we will output it */
+                    print_word_hex(extra_instruction, &memory_line, ob);
+                }
+
+                
+
+                if (cmd.operands_num == 2){
                     /*
                         The only possible scenario now is 2 operands, and a dest_mode left untreated.
                         Therefore we must also look into the dest_mode, in this scenario.
@@ -376,7 +376,6 @@ void assemble(FILE* file, FILE* ob){
                     }
                 }
 
-
                 /*
                     Initialize values back to 0 (the -1 was a temporary flag for the absence of such mode!)
                 */
@@ -405,6 +404,22 @@ void assemble(FILE* file, FILE* ob){
             /* Invalid command name */
             error_with_code(2, buffer, &errors);
         }
+    }
+
+    /* Write down entries */
+    LinkedList* curr;
+
+    curr = entries;
+    while (curr != NULL){
+        fprintf(ent, "%s %07d\n", curr->label, curr->value.number);
+        curr = curr->next;
+    }
+
+    /* Write down externs */
+    curr = externs;
+    while (curr != NULL){
+        fprintf(ext, "%s %07d\n", curr->label, curr->value.number);
+        curr = curr->next;
     }
 
     free_label_list(labels); /* Free labels list memory, that is manually allocated */

@@ -12,6 +12,8 @@
 #define RELATIVE_ADRS 2
 #define DIRECT_REGISTER_ADRS 3
 
-void assemble(FILE* file, FILE* ob);
+#define START_LINE 100
+
+void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext);
 
 #endif

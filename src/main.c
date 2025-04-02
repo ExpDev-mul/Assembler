@@ -24,12 +24,24 @@ int main(int argc, char *argv[]) {
         char* base_name = "test";
 
         /*
+            Create/write to relevant .am file
+        */
+
+        char path[256];
+        snprintf(path, sizeof(path), "./outputs/%s.am", base_name);
+        FILE* am = fopen(path, "w");
+        if (am == NULL) {
+            printf("Error opening .am file to write!\n");
+            fclose(file);
+            return EXIT_FAILURE;
+        }
+
+        /*
             Create/write to relevant .ob file
         */
 
-        char ob_path[256];
-        snprintf(ob_path, sizeof(ob_path), "./outputs/%s.ob", base_name);
-        FILE* ob = fopen(ob_path, "w");
+        snprintf(path, sizeof(path), "./outputs/%s.ob", base_name);
+        FILE* ob = fopen(path, "w");
         if (ob == NULL) {
             printf("Error opening .ob file to write!\n");
             fclose(file);
@@ -41,9 +53,8 @@ int main(int argc, char *argv[]) {
             Create/write to relevant .ext file
         */
 
-        char ext_path[256];
-        snprintf(ext_path, sizeof(ext_path), "./outputs/%s.ext", base_name);
-        FILE* ext = fopen(ext_path, "w");
+        snprintf(path, sizeof(path), "./outputs/%s.ext", base_name);
+        FILE* ext = fopen(path, "w");
         if (ext == NULL) {
             printf("Error opening .ext file to write!\n");
             fclose(file);
@@ -54,17 +65,17 @@ int main(int argc, char *argv[]) {
             Create/write to relevant .ent file
         */
 
-        char ent_path[256];
-        snprintf(ent_path, sizeof(ent_path), "./outputs/%s.ent", base_name);
-        FILE* ent = fopen(ent_path, "w");
+        snprintf(path, sizeof(path), "./outputs/%s.ent", base_name);
+        FILE* ent = fopen(path, "w");
         if (ent == NULL) {
             printf("Error opening .ent file to write!\n");
             fclose(file);
             return EXIT_FAILURE;
         }
 
-        assemble(file, ob);
+        assemble(file, am, ob, ent, ext);
         fclose(file);
+        fclose(am);
         fclose(ob);
         fclose(ext);
         fclose(ent);

@@ -7,7 +7,7 @@
 #include "../header/lib.h"
 #include "../header/errors.h"
 
-void preprocess(FILE* file, FILE* temp, LinkedList** labels_ptr, LinkedList** externs_ptr, uint8_t* errors){
+void preprocess(FILE* file, FILE* temp, LinkedList** labels_ptr, LinkedList** entries_ptr, LinkedList** externs_ptr, uint8_t* errors){
     /* Line reading buffers */
     char buffer[BUFFER_SIZE];
     char buffer_copy[BUFFER_SIZE];
@@ -18,13 +18,13 @@ void preprocess(FILE* file, FILE* temp, LinkedList** labels_ptr, LinkedList** ex
 
     LinkedList* labels = *labels_ptr;
     LinkedList* externs = *externs_ptr;
+    LinkedList* entries = *entries_ptr;
 
-    LinkedList* entries = NULL;
     LinkedList* macros = NULL;
     bool is_reading_macro = false; /* Flag for whetehr we're reading a macro */
 
     /* Buffer for externs, maximum 10 externs each of length 10 */
-    uint8_t line = 100; /* Line reading starts at 0 */
+    uint8_t line = START_LINE; /* Line reading starts at 0 */
     while (1){
         if (fgets(buffer, BUFFER_SIZE, file) == NULL){
             break; /* EOF has been reached, or an error has occured. */
@@ -147,8 +147,6 @@ void preprocess(FILE* file, FILE* temp, LinkedList** labels_ptr, LinkedList** ex
     }
 
     free_label_list(macros);
-    *labels_ptr = labels;
-    *externs_ptr = externs;
 
     LinkedList* curr = entries;
     while (curr != NULL){
@@ -159,4 +157,8 @@ void preprocess(FILE* file, FILE* temp, LinkedList** labels_ptr, LinkedList** ex
 
         curr = curr->next;
     }
+
+    *labels_ptr = labels;
+    *entries_ptr = entries;
+    *externs_ptr = externs;
 }
