@@ -12,7 +12,7 @@ int main(int argc, char *argv[]) {
     }
 
     int i;
-    for (i = 1; i < argc; i++){
+    for (i = 1; i < argc; i++){ /* Iterate through all the terminal-arguments */
         /* Open the input file */
         FILE *file = fopen(argv[i], "r");
         if (!file) {
@@ -21,7 +21,17 @@ int main(int argc, char *argv[]) {
         }
 
         /* Create a fixed output file */
-        char* base_name = "test";
+        char* base_name = strchr(argv[i], '/');
+        if (base_name){
+            base_name++;
+        } else {
+            base_name = argv[1];
+        }
+
+        char* base_name_end = strchr(base_name, '.');
+        if (base_name_end){
+            *base_name_end = '\0';
+        }
 
         /*
             Create/write to relevant .am file
@@ -29,10 +39,9 @@ int main(int argc, char *argv[]) {
 
         char path[256];
         snprintf(path, sizeof(path), "./outputs/%s.am", base_name);
-        FILE* am = fopen(path, "w");
+        FILE* am = fopen(path, "w+");
         if (am == NULL) {
             printf("Error opening .am file to write!\n");
-            fclose(file);
             return EXIT_FAILURE;
         }
 
@@ -44,7 +53,6 @@ int main(int argc, char *argv[]) {
         FILE* ob = fopen(path, "w");
         if (ob == NULL) {
             printf("Error opening .ob file to write!\n");
-            fclose(file);
             return EXIT_FAILURE;
         }
 
@@ -57,7 +65,6 @@ int main(int argc, char *argv[]) {
         FILE* ext = fopen(path, "w");
         if (ext == NULL) {
             printf("Error opening .ext file to write!\n");
-            fclose(file);
             return EXIT_FAILURE;
         }
 
@@ -69,7 +76,6 @@ int main(int argc, char *argv[]) {
         FILE* ent = fopen(path, "w");
         if (ent == NULL) {
             printf("Error opening .ent file to write!\n");
-            fclose(file);
             return EXIT_FAILURE;
         }
 
