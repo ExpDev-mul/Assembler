@@ -6,7 +6,6 @@
 #include <stdint.h>
 
 #include "../header/labels.h"
-#include "../header/lib.h"
 
 /* Adds a label with a numeric value */
 void add_label_number(LinkedList **head, const char *label, uint8_t number) {
@@ -90,6 +89,24 @@ LinkedList* get_node_by_label(LinkedList *head, const char *label) {
     }
     
     return NULL;
+}
+
+/* Checks whether the label exists within the list */
+bool is_label_in_list(LinkedList *head, const char *label) {
+    if (head == NULL || label == NULL) {
+        return false;
+    }
+    
+    LinkedList *curr = head;
+    while (curr != NULL) {
+        if (curr->label != NULL && !strcmp(curr->label, label)) {
+            return true;
+        }
+        
+        curr = curr->next;
+    }
+    
+    return false;
 }
 
 /* Prints all labels and their values */

@@ -13,11 +13,11 @@ Word* create_word(uint8_t opcode, uint8_t src_mode, uint8_t src_reg,
         exit(EXIT_FAILURE);
     }
     inst->word = ((uint32_t)opcode << 18) |
-                 ((uint32_t)src_mode << 15) |
-                 ((uint32_t)src_reg << 12) |
-                 ((uint32_t)dest_mode << 9) |
-                 ((uint32_t)dest_reg << 6) |
-                 ((uint32_t)funct << 2) |
+                 ((uint32_t)src_mode << 16) |
+                 ((uint32_t)src_reg << 13) |
+                 ((uint32_t)dest_mode << 11) |
+                 ((uint32_t)dest_reg << 8) |
+                 ((uint32_t)funct << 3) |
                  ((uint32_t)A << 2) |
                  ((uint32_t)R << 1) |
                  ((uint32_t)E);

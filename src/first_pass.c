@@ -16,7 +16,6 @@ void first_pass(FILE* file, LinkedList** labels_ptr, LinkedList** entries_ptr, L
     LinkedList* externs = *externs_ptr;
     LinkedList* entries = *entries_ptr;
 
-    /* Buffer for externs, maximum 10 externs each of length 10 */
     uint8_t line = START_LINE - 1; /* Line reading starts one line before the START_LINE */
     while (1){
         if (fgets(buffer, BUFFER_SIZE, file) == NULL){
@@ -48,6 +47,19 @@ void first_pass(FILE* file, LinkedList** labels_ptr, LinkedList** entries_ptr, L
             /* Remove the ':' at the end */
             char *pos = strchr(prefix, ':');
             *pos = '\0';
+
+            if (strlen(prefix) == 0){
+                /* Checks whether the label is empty */
+                error_with_code(EMPTY_LABEL_DECLARATION, line, errors);
+                continue;
+            }
+
+            if (is_label_in_list(labels, prefix)){
+                /* Checks whether the label has already been defined */
+                error_with_code(LABEL_ALREADY_DEFINED, line, errors);
+                continue;
+            }
+
             add_label_number(&labels, prefix, line); /* Insert label into our linked list */
             continue;
         }
@@ -59,6 +71,19 @@ void first_pass(FILE* file, LinkedList** labels_ptr, LinkedList** entries_ptr, L
 
             char *arg = strtok(NULL, " ");
             skip_leading_spaces(&arg);
+
+            if (arg == NULL){
+                /* Checks whether there is a missing argument */
+                error_with_code(ENTRY_MISSING_ARGUMENT, line, errors);
+                continue;
+            }
+
+            if (is_label_in_list(externs, prefix)){
+                /* Checks whether the label is already defined as an .extern */
+                error_with_code(EXTERN_ALREADY_DEFINED, line, errors);
+                continue;
+            }
+
             add_label_number(&externs, arg, line);
             continue;
         }
@@ -70,6 +95,17 @@ void first_pass(FILE* file, LinkedList** labels_ptr, LinkedList** entries_ptr, L
 
             char *arg = strtok(NULL, " ");
             skip_leading_spaces(&arg);
+
+            if (arg == NULL){
+                error_with_code(ENTRY_MISSING_ARGUMENT, line, errors);
+                continue;
+            }
+
+            if (is_label_in_list(entries, prefix)){
+                error_with_code(ENTRY_ALREADY_DEFINED, line, errors);
+                continue;
+            }
+
             add_label_number(&entries, arg, line);
             continue;
         }

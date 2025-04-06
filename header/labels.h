@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include "../header/lib.h"
+
 /* Structure for a linked list node */
 typedef enum {
     NUMBER_VALUE,
@@ -27,6 +29,9 @@ void add_label_string(LinkedList **head, const char *label, const char *buffer);
 
 /* Retrieves and prints the value associated with a given label */
 LinkedList* get_node_by_label(LinkedList *head, const char *label);
+
+/* Checks if a label exists in the linked list */
+bool is_label_in_list(LinkedList *head, const char *label);
 
 /* Prints all labels and their associated values */
 void print_labels(LinkedList *head);

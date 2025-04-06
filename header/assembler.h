@@ -7,6 +7,8 @@
 #define BUFFER_SIZE 1024
 #define MACRO_SIZE 1024
 
+#define NUM_REGISTERS 8
+
 #define IMMEDIATE_ADRS 0
 #define DIRECT_ADRS 1
 #define RELATIVE_ADRS 2
