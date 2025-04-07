@@ -96,7 +96,7 @@ bool is_valid_reg(char *arg) {
     return reg_num >= 0 && reg_num < NUM_REGISTERS && arg[2] == '\0';
 }
 
-bool is_valid_number(char *arg) {
+bool is_valid_immediate_number(char *arg) {
     if (arg == NULL) {
         return false;
     }
@@ -105,6 +105,26 @@ bool is_valid_number(char *arg) {
     if (arg[0] == '#') {
         int i;
         for (i = (arg[1] == '+' || arg[1] == '-') ? 2 : 1; arg[i] != '\0'; i++) {
+            if (!isdigit(arg[i])) {
+                return false; /* Non-digit character found */
+            }
+        }
+
+        return true; /* Valid number */
+    }
+
+    return false; /* Invalid number */
+}
+
+bool is_valid_number(char *arg) {
+    if (arg == NULL) {
+        return false;
+    }
+
+    /* Check if the first character is a digit or a sign */
+    if (isdigit(arg[0]) || arg[0] == '+' || arg[0] == '-') {
+        int i;
+        for (i = 1; arg[i] != '\0'; i++) {
             if (!isdigit(arg[i])) {
                 return false; /* Non-digit character found */
             }
@@ -212,6 +232,8 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext){
         return;
     }
 
+    print_labels(labels);
+
     bool is_command = false;
     bool stay_in_line = false;
     while (1){
@@ -240,13 +262,9 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext){
         }
 
         if (command[0] == '.'){
+
             /* Variable declaration */
             command++; /* Increase pointer, to dismiss '.' symbol */            
-            char *metadata = strtok(NULL, " ");
-            if (metadata == NULL) {
-                error_with_code(MISSING_DATA, line, &errors);
-                return;
-            }
 
             /* Copy metadata into a buffer to prevent strtok issues */
             if (!strcmp(command, "data")) {
@@ -256,23 +274,42 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext){
                 
                 */
 
-                char metadata_buffer[BUFFER_SIZE];  /* Adjust size as needed */
-                strncpy(metadata_buffer, metadata, sizeof(metadata_buffer) - 1);
-                metadata_buffer[sizeof(metadata_buffer) - 1] = '\0';  /* Ensure null termination */
+                char *metadata = strtok(NULL, "");
+                if (metadata == NULL){
+                    error_with_code(MISSING_DATA, line, &errors);
+                    return;
+                }
 
-                /* Extract all metadata from variable */
-                char *current = strtok(metadata_buffer, ",");
-                while (current != NULL) {
-                    if (!is_valid_number(current)) {
+                char *current = metadata; /* Start processing the metadata string */
+                while (*current != '\0') {
+                    skip_leading_spaces(&current); /* Skip leading spaces */
+            
+                    char *number_start = current; /* Mark the start of the number */
+            
+                    /* Find the end of the current number */
+                    while (*current != ',' && *current != '\0') {
+                        current++;
+                    }
+            
+                    /* Null-terminate the current number */
+                    char temp = *current;
+                    *current = '\0';
+            
+                    /* Validate and process the number */
+                    if (!is_valid_number(number_start)) {
                         error_with_code(INVALID_DATA_VALUE, line, &errors);
                         break;
                     }
-
-                    Word *instruction = create_word_from_only_number((int8_t)atoi(current)); 
+            
+                    Word *instruction = create_word_from_only_number((int8_t)atoi(number_start));
                     print_word_hex(instruction, &line, ob);
-
-                    current = strtok(NULL, ",");
                     dc++;
+            
+                    /* Restore the character and move to the next number */
+                    *current = temp;
+                    if (*current == ',') {
+                        current++; /* Skip the comma */
+                    }
                 }
             } else if (!strcmp(command, "string")) {
                 /*
@@ -280,6 +317,12 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext){
                     Every character is converted into its ASCII character, as an instruction, excluding (A,R,E)
 
                 */
+
+                char *metadata = strtok(NULL, " ");
+                if (metadata == NULL){
+                    error_with_code(MISSING_DATA, line, &errors);
+                    return;
+                }
 
                 uint8_t counter = 0; /* Counter for length of array */
 
@@ -306,6 +349,8 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext){
             continue;
         }
         
+        
+
         char *arg1 = strtok(NULL, ","); /* The 2nd token should correspond to the first argument */
         skip_leading_spaces(&arg1);
         char *arg2 = strtok(NULL, ","); /* The 3rd token should correspond to the second argument */
@@ -446,7 +491,7 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext){
                     
                         */
 
-                        if (!is_valid_number(arg)){
+                        if (!is_valid_immediate_number(arg)){
                             /* Invalid number */
                             error_with_code(INVALID_IMMEDIATE_VALUE, line, &errors);
                             break;
@@ -559,7 +604,7 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext){
                         
                             */
     
-                            if (!is_valid_number(arg)){
+                            if (!is_valid_immediate_number(arg)){
                                 /* Invalid number */
                                 error_with_code(INVALID_IMMEDIATE_VALUE, line, &errors);
                                 break;

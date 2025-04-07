@@ -27,6 +27,7 @@ red r1
 jsr LOOP2
 rts
 END2: stop
+; 137 in ob file
 STR2: .string "mnopqr"
 DATA2: .data 10,-15,25
 L: .data 44

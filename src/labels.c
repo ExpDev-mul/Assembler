@@ -1,5 +1,3 @@
-/* TODO: Implement O(1) insert TC (changing direction of linked list insertion...) */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,7 +5,16 @@
 
 #include "../header/labels.h"
 
-/* Adds a label with a numeric value */
+/**
+ * @brief Adds a label with a numeric value to the linked list.
+ * 
+ * This function creates a new node with the given label and numeric value
+ * and inserts it at the beginning of the linked list for O(1) insertion.
+ * 
+ * @param head Pointer to the head of the linked list.
+ * @param label The label name to add.
+ * @param number The numeric value to associate with the label.
+ */
 void add_label_number(LinkedList **head, const char *label, uint8_t number) {
     LinkedList *new_node = (LinkedList *)malloc(sizeof(LinkedList));
     if (!new_node) {
@@ -24,20 +31,22 @@ void add_label_number(LinkedList **head, const char *label, uint8_t number) {
 
     new_node->type = NUMBER_VALUE;
     new_node->value.number = number;
-    new_node->next = NULL;
 
-    if (*head == NULL) {
-        *head = new_node;
-    } else {
-        LinkedList *curr = *head;
-        while (curr->next) {
-            curr = curr->next;
-        }
-        curr->next = new_node;
-    }
+    /* Insert at the beginning for O(1) insertion */
+    new_node->next = *head;
+    *head = new_node;
 }
 
-/* Adds a label with a string buffer */
+/**
+ * @brief Adds a label with a string value to the linked list.
+ * 
+ * This function creates a new node with the given label and string value
+ * and inserts it at the beginning of the linked list for O(1) insertion.
+ * 
+ * @param head Pointer to the head of the linked list.
+ * @param label The label name to add.
+ * @param buffer The string value to associate with the label.
+ */
 void add_label_string(LinkedList **head, const char *label, const char *buffer) {
     LinkedList *new_node = (LinkedList *)malloc(sizeof(LinkedList));
     if (!new_node) {
@@ -51,6 +60,7 @@ void add_label_string(LinkedList **head, const char *label, const char *buffer) 
         free(new_node);
         exit(EXIT_FAILURE);
     }
+
     new_node->type = STRING_VALUE;
     new_node->value.buffer = strdup(buffer);
     if (!new_node->value.buffer) {
@@ -60,20 +70,21 @@ void add_label_string(LinkedList **head, const char *label, const char *buffer) 
         exit(EXIT_FAILURE);
     }
 
-    new_node->next = NULL;
-
-    if (*head == NULL) {
-        *head = new_node;
-    } else {
-        LinkedList *curr = *head;
-        while (curr->next) {
-            curr = curr->next;
-        }
-        curr->next = new_node;
-    }
+    /* Insert at the beginning for O(1) insertion */
+    new_node->next = *head;
+    *head = new_node;
 }
 
-/* Retrieves a label's stored value */
+/**
+ * @brief Retrieves a label's stored value from the linked list.
+ * 
+ * This function searches for a label in the linked list and returns the
+ * corresponding node if found.
+ * 
+ * @param head Pointer to the head of the linked list.
+ * @param label The label name to search for.
+ * @return Pointer to the node containing the label, or NULL if not found.
+ */
 LinkedList* get_node_by_label(LinkedList *head, const char *label) {
     if (head == NULL || label == NULL) {
         return NULL;
@@ -84,14 +95,22 @@ LinkedList* get_node_by_label(LinkedList *head, const char *label) {
         if (curr->label != NULL && !strcmp(curr->label, label)) {
             return curr;
         }
-        
         curr = curr->next;
     }
     
     return NULL;
 }
 
-/* Checks whether the label exists within the list */
+/**
+ * @brief Checks whether a label exists in the linked list.
+ * 
+ * This function searches for a label in the linked list and returns true
+ * if the label exists, or false otherwise.
+ * 
+ * @param head Pointer to the head of the linked list.
+ * @param label The label name to search for.
+ * @return true if the label exists, false otherwise.
+ */
 bool is_label_in_list(LinkedList *head, const char *label) {
     if (head == NULL || label == NULL) {
         return false;
@@ -102,14 +121,20 @@ bool is_label_in_list(LinkedList *head, const char *label) {
         if (curr->label != NULL && !strcmp(curr->label, label)) {
             return true;
         }
-        
         curr = curr->next;
     }
     
     return false;
 }
 
-/* Prints all labels and their values */
+/**
+ * @brief Prints all labels and their associated values.
+ * 
+ * This function iterates through the linked list and prints each label
+ * along with its associated value (numeric or string).
+ * 
+ * @param head Pointer to the head of the linked list.
+ */
 void print_labels(LinkedList *head) {
     if (head == NULL) {
         printf("Label list is empty.\n");
@@ -123,16 +148,28 @@ void print_labels(LinkedList *head) {
         } else {
             printf("Label: %s, String: %s\n", curr->label, curr->value.buffer);
         }
-
-        if (curr->next != NULL){
-            curr = curr->next;
-        } else {
-            break; /* Avoid assigning null pointer which leads to a segmentation fault */
-        }
+        curr = curr->next;
     }
 }
 
-/* Frees all allocated memory in the list */
+/**
+ * @brief Frees all allocated memory in the linked list.
+ * 
+ * This function deallocates all nodes in the linked list, including
+ * the memory allocated for labels and string values.
+ * 
+ * @param head Pointer to the head of the linked list.
+ */
 void free_label_list(LinkedList *head) {
-    
+    LinkedList *curr = head;
+    while (curr != NULL) {
+        LinkedList *temp = curr;
+        curr = curr->next;
+
+        free(temp->label);
+        if (temp->type == STRING_VALUE) {
+            free(temp->value.buffer);
+        }
+        free(temp);
+    }
 }

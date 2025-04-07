@@ -4,6 +4,12 @@
 /* Internal headers */
 #include "../header/errors.h"
 
+/**
+ * @brief Array of error messages corresponding to error codes.
+ * 
+ * Each entry in this array corresponds to an error code defined in `errors.h`.
+ * The index of the message matches the error code, ensuring consistency.
+ */
 char *errors_table[] = {
     [MISSING_ARGUMENTS] = "Missing arguments",
     [EXTRANEOUS_TEXT] = "Extraneous text after end of command",
@@ -37,16 +43,32 @@ char *errors_table[] = {
 
     [REGISTER_OUT_OF_BOUNDS] = "Register number out of bounds",
     [EXTERN_ALREADY_DEFINED] = "Extern label already defined",
-    [EMPTY_LABEL_DECLARATION] = "Empty label declaration"
+    [EMPTY_LABEL_DECLARATION] = "Empty label declaration",
+    [CONFLICTING_ENTRY_AND_EXTERN] = "Extern and entry cannot have the same name",
 };
 
-void error_with_code(int code, uint8_t line, uint8_t *errors_counter){
-    int errors_table_size = sizeof(errors_table)/sizeof(errors_table[0]);
-    if (code < 0 || code >= errors_table_size){
-        /* Ensure error code is within bounds */
+/**
+ * @brief Outputs an error message corresponding to the given error code.
+ * 
+ * This function retrieves the error message associated with the given error code
+ * and prints it to the standard output, along with the line number where the error occurred.
+ * It also increments the error counter to track the total number of errors.
+ * 
+ * @param code The error code to report.
+ * @param line The line number where the error occurred.
+ * @param errors_counter Pointer to the error counter to increment.
+ */
+void error_with_code(int code, uint8_t line, uint8_t *errors_counter) {
+    int errors_table_size = sizeof(errors_table) / sizeof(errors_table[0]);
+
+    /* Ensure the error code is within bounds */
+    if (code < 0 || code >= errors_table_size) {
         return;
     }
 
+    /* Increment the error counter */
     (*errors_counter)++;
-    printf("Error at Line: %i: %s\n", line, errors_table[code]); /* Output current error */
+
+    /* Print the error message */
+    printf("Error at Line: %i: %s\n", line, errors_table[code]);
 }

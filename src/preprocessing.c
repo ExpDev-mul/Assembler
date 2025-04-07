@@ -6,83 +6,94 @@
 #include "../header/labels.h"
 #include "../header/lib.h"
 
-void preprocess(FILE* file, FILE* temp){
+/**
+ * @brief Preprocesses the input file for the assembler.
+ * 
+ * This function processes the input file to handle macros and other preprocessing tasks.
+ * It expands macros and writes the processed content to a temporary file for further assembly.
+ * 
+ * @param file The input file to preprocess.
+ * @param temp The temporary file to write the preprocessed content to.
+ */
+void preprocess(FILE* file, FILE* temp) {
     /* Line reading buffers */
     char buffer[BUFFER_SIZE];
     char buffer_copy[BUFFER_SIZE];
 
     /* Macro buffers */
-    char macro_buffer[BUFFER_SIZE*10];
-    char macro_name[10];
+    char macro_buffer[BUFFER_SIZE * 10]; /* Buffer to store macro content */
+    char macro_name[10];                /* Buffer to store macro name */
 
-    LinkedList* macros = NULL;
-    bool is_reading_macro = false; /* Flag for whetehr we're reading a macro */
+    LinkedList* macros = NULL;          /* Linked list to store macros */
+    bool is_reading_macro = false;      /* Flag to indicate if we're reading a macro */
 
-    /* Buffer for externs, maximum 10 externs each of length 10 */
-    while (1){
-        if (fgets(buffer, BUFFER_SIZE, file) == NULL){
-            break; /* EOF has been reached, or an error has occured. */
+    while (1) {
+        /* Read a line from the input file */
+        if (fgets(buffer, BUFFER_SIZE, file) == NULL) {
+            break; /* EOF has been reached, or an error has occurred */
         }
 
-        /* Because fgets includes the new line charcter, we remove it from the end of the string. */
+        /* Remove the newline character from the end of the string */
         buffer[strcspn(buffer, "\n")] = '\0';
 
+        /* Create a copy of the buffer for processing */
         strcpy(buffer_copy, buffer);
-        char *prefix = strtok(buffer, " "); /* The first token separated by a comma is our actual command. */
-        
-        if (prefix == NULL){
-            continue; /* Empty line scenario */
+        char *prefix = strtok(buffer, " "); /* Extract the first token as the command */
+
+        if (prefix == NULL) {
+            continue; /* Skip empty lines */
         }
 
-        if (prefix[0] == ';'){
-            /* This is a comment, skip to next line! */
-            continue;
-        }
-        
-        if (!strcmp(prefix, "mcro")){
-            /* 
-                Macro declaration
-            */
-
-            char *arg = strtok(NULL, " "); /* Tokenize macro name */
-            strcpy(macro_name, arg); /* Store the macro's name elsewehere */
-            is_reading_macro = true; /* Turn on the macro reading */
+        if (prefix[0] == ';') {
+            /* Skip comments (lines starting with ';') */
             continue;
         }
 
-        if (!strcmp(prefix, "mcroend")){
-            /* 
-                Macro declaration
-            */
+        if (!strcmp(prefix, "mcro")) {
+            /* Start of a macro declaration */
+            char *arg = strtok(NULL, " "); /* Extract the macro name */
+            if (arg == NULL) {
+                fprintf(stderr, "Error: Missing macro name.\n");
+                continue;
+            }
 
-            char *macro_name_ptr = macro_name;
-            char *macro_buffer_ptr = macro_buffer;
-            add_label_string(&macros, macro_name_ptr, macro_buffer_ptr);
-            memset(macro_buffer, 0, sizeof(macro_buffer)); /* Clear marco buffer */
-            is_reading_macro = false; /* Stop macro reading */
+            strcpy(macro_name, arg); /* Store the macro's name */
+            is_reading_macro = true; /* Enable macro reading mode */
             continue;
         }
 
-        if (is_reading_macro){
+        if (!strcmp(prefix, "mcroend")) {
+            /* End of a macro declaration */
+            add_label_string(&macros, macro_name, macro_buffer); /* Add the macro to the list */
+            memset(macro_buffer, 0, sizeof(macro_buffer));       /* Clear the macro buffer */
+            is_reading_macro = false;                           /* Disable macro reading mode */
+            continue;
+        }
+
+        if (is_reading_macro) {
+            /* Append the current line to the macro buffer */
             char *buffer_copy_ptr = buffer_copy;
             skip_leading_spaces(&buffer_copy_ptr);
-            strncat(macro_buffer, buffer_copy_ptr , MACRO_SIZE);
-            strncat(macro_buffer, "\n" , MACRO_SIZE);
+            strncat(macro_buffer, buffer_copy_ptr, MACRO_SIZE);
+            strncat(macro_buffer, "\n", MACRO_SIZE);
             continue;
         }
 
+        /* Check if the current line matches a macro name */
         LinkedList* macro_ptr = get_node_by_label(macros, prefix);
-        if (macro_ptr != NULL){
-            /* If the current label has a certain node it's attached to */
+        if (macro_ptr != NULL) {
+            /* If the macro exists, write its content to the temporary file */
             fputs(macro_ptr->value.buffer, temp);
             continue;
         }
-        
+
+        /* Write the current line to the temporary file */
         char *buffer_copy_ptr = buffer_copy;
         skip_leading_spaces(&buffer_copy_ptr);
         fputs(buffer_copy_ptr, temp);
         fputc('\n', temp);
     }
 
+    /* Free the memory allocated for the macros linked list */
     free_label_list(macros);
 }

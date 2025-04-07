@@ -5,45 +5,49 @@
 
 #include "../header/lib.h"
 
+/**
+ * @brief Structure representing a command in the assembler.
+ * 
+ * Each command has a name, opcode, funct value, number of operands, and flags
+ * indicating the allowed addressing modes for source and destination operands.
+ */
 typedef struct {
-    char* name; /* Command name */
-    int opcode; /* Command opcode */
-    int funct; /* Command funct value */
-    int operands_num; /* Command's number of operands */
-
-    /*
-        Each spot corresponds to whether it's allowed or not.
-        1: It is allowed
-        0: It is not allowed
-    */
-    bool addressing_dest[4]; /* Flags of which addressing methods are defined for dest operand */
-    bool addressing_src[4]; /* Flags of which addressing methods are defined for src operand */
+    char* name;                /* Command name (e.g., "mov", "add") */
+    int opcode;                /* Command opcode */
+    int funct;                 /* Command funct value */
+    int operands_num;          /* Number of operands required by the command */
+    bool addressing_dest[4];   /* Allowed addressing modes for the destination operand */
+    bool addressing_src[4];    /* Allowed addressing modes for the source operand */
 } Command;
 
+/**
+ * @brief Array of all supported commands in the assembler.
+ * 
+ * Each entry defines the command's name, opcode, funct value, number of operands,
+ * and the allowed addressing modes for source and destination operands.
+ */
 Command commands[] = {
     /* Two operands */
-    {"mov", 0, EMPTY_SPOT, 2,   {0, 1, 0, 1}, {1, 1, 0, 1}},
-    {"cmp", 1, EMPTY_SPOT, 2,   {1, 1, 0, 1}, {1, 1, 0, 1}},
-    {"add", 2, 1, 2,            {0, 1, 0, 1}, {1, 1, 0, 1}},
-    {"sub", 2, 2, 2,            {0, 1, 0, 1}, {1, 1, 0, 1}},
-    {"lea", 4, 0, 2,            {0, 1, 0, 1}, {0, 1, 0, 0}},
+    {"mov",  0, EMPTY_SPOT, 2, {0, 1, 0, 1}, {1, 1, 0, 1}},  /* Move data */
+    {"cmp",  1, EMPTY_SPOT, 2, {1, 1, 0, 1}, {1, 1, 0, 1}},  /* Compare */
+    {"add",  2, 1,          2, {0, 1, 0, 1}, {1, 1, 0, 1}},  /* Add */
+    {"sub",  2, 2,          2, {0, 1, 0, 1}, {1, 1, 0, 1}},  /* Subtract */
+    {"lea",  4, 0,          2, {0, 1, 0, 1}, {0, 1, 0, 0}},  /* Load effective address */
 
     /* One operand */
-    {"clr", 5, 1, 1,            {0, 1, 0, 1}, {0, 0, 0, 0}},
-    {"not", 5, 2, 1,            {0, 1, 0, 1}, {0, 0, 0, 0}},
-    {"dec", 5, 4, 1,            {0, 1, 0, 1}, {0, 0, 0, 0}},
-    {"jmp", 9, 1, 1,            {0, 1, 1, 0}, {0, 0, 0, 0}},
-    {"bne", 9, 2, 1,            {0, 1, 1, 0}, {0, 0, 0, 0}},
-    {"inc", 5, 3, 1,            {0, 1, 0, 1}, {0, 0, 0, 0}},
-    {"jsr", 9, 3, 1,            {0, 1, 1, 0}, {0, 0, 0, 0}},
-    {"red", 12, EMPTY_SPOT, 1,  {0, 1, 0, 1}, {0, 0, 0, 0}},
-    {"prn", 13, EMPTY_SPOT, 1,  {1, 1, 0, 1}, {0, 0, 0, 0}},
+    {"clr",  5, 1,          1, {0, 1, 0, 1}, {0, 0, 0, 0}},  /* Clear */
+    {"not",  5, 2,          1, {0, 1, 0, 1}, {0, 0, 0, 0}},  /* Bitwise NOT */
+    {"dec",  5, 4,          1, {0, 1, 0, 1}, {0, 0, 0, 0}},  /* Decrement */
+    {"jmp",  9, 1,          1, {0, 1, 1, 0}, {0, 0, 0, 0}},  /* Jump */
+    {"bne",  9, 2,          1, {0, 1, 1, 0}, {0, 0, 0, 0}},  /* Branch if not equal */
+    {"inc",  5, 3,          1, {0, 1, 0, 1}, {0, 0, 0, 0}},  /* Increment */
+    {"jsr",  9, 3,          1, {0, 1, 1, 0}, {0, 0, 0, 0}},  /* Jump to subroutine */
+    {"red", 12, EMPTY_SPOT, 1, {0, 1, 0, 1}, {0, 0, 0, 0}},  /* Read input */
+    {"prn", 13, EMPTY_SPOT, 1, {1, 1, 0, 1}, {0, 0, 0, 0}},  /* Print */
 
     /* No operands */
-    {"rts", 14, EMPTY_SPOT, 0,  {0, 0, 0, 0}, {0, 0, 0, 0}},
-    {"stop", 15, EMPTY_SPOT, 0, {0, 0, 0, 0}, {0, 0, 0, 0}},
+    {"rts", 14, EMPTY_SPOT, 0, {0, 0, 0, 0}, {0, 0, 0, 0}},  /* Return from subroutine */
+    {"stop", 15, EMPTY_SPOT, 0, {0, 0, 0, 0}, {0, 0, 0, 0}}, /* Stop execution */
 };
-
-
 
 #endif /* OPCODE_H */
