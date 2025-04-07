@@ -19,13 +19,23 @@ uint8_t errors; /* Prototype for errors */
 
 
 
-
-
-
 /* -----GETTERS START----- */
 
-/* Retrieves mode of an argument */
-uint8_t get_mode(char *arg){
+/**
+ * @brief Retrieves the addressing mode of an argument.
+ * 
+ * This function determines the addressing mode of the given argument based on its prefix.
+ * 
+ * @param arg The argument whose addressing mode is to be determined.
+ * @return The addressing mode as a uint8_t value.
+ */
+uint8_t get_mode(char *arg) {
+    /* Ensure the argument is not NULL */
+    if (arg == NULL) {
+        return 0;
+    }
+
+    /* Determine the addressing mode based on the prefix */
     if (arg[0] == 'r') {
         /* Register case (e.g., r0, r2, r9) */
         return DIRECT_REGISTER_ADRS;
@@ -33,53 +43,70 @@ uint8_t get_mode(char *arg){
         /* Immediate number case (e.g., #5, #-3) */
         return IMMEDIATE_ADRS;
     } else if (arg[0] == '&') {
-        /* Relative addressing case (e.g, &START, &END) */
+        /* Relative addressing case (e.g., &START, &END) */
         return RELATIVE_ADRS;
     } else {
-        /* Direct addressing case (e.g, MAIN, END, basically labels) */
+        /* Direct addressing case (e.g., MAIN, END, basically labels) */
         return DIRECT_ADRS;
     }
-
-    return 0;
 }
 
-/* Retrieves register state of an argument */
-uint8_t get_reg(char *arg){
-    /* Register case (e.g., r0, r2, r9) */
-    return atoi(&arg[1]); /* Extract register number to be returned */
+/**
+ * @brief Retrieves the register number from an argument.
+ * 
+ * This function extracts the register number from an argument that represents a register.
+ * 
+ * @param arg The argument representing a register (e.g., r0, r1).
+ * @return The register number as a uint8_t value.
+ */
+uint8_t get_reg(char *arg) {
+    /* Ensure the argument is not NULL */
+    if (arg == NULL) {
+        return 0;
+    }
+
+    /* Extract and return the register number */
+    return (uint8_t)atoi(&arg[1]);
 }
 
+/**
+ * @brief Extracts a number from an immediate addressing argument.
+ * 
+ * This function extracts the numeric value from an argument that uses immediate addressing.
+ * 
+ * @param arg The argument in immediate addressing format (e.g., #5, #-3).
+ * @return The extracted number as an int8_t value.
+ */
 int8_t extract_number(char *arg) {
-    if (arg[0] != '#'){
+    int num; /* Variable to store the extracted number */
+
+    /* Ensure the argument starts with '#' */
+    if (arg == NULL || arg[0] != '#') {
         fprintf(stderr, "Invalid input format\n");
         exit(EXIT_FAILURE);
     }
 
     /* Convert the substring after '#' to an integer */
-    int num = atoi(arg + 1);
+    num = atoi(arg + 1);
     return (int8_t)num;
 }
 
 /* -----GETTERS END----- */
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* -----VALIDATORS START----- */
 
+/**
+ * @brief Validates if an argument represents a valid register.
+ * 
+ * This function checks if the given argument is a valid register (e.g., r0, r1).
+ * 
+ * @param arg The argument to validate.
+ * @return true if the argument is a valid register, false otherwise.
+ */
 bool is_valid_reg(char *arg) {
+    int reg_num; /* Variable to store the register number */
+
+    /* Ensure the argument is not NULL and starts with 'r' */
     if (arg == NULL || arg[0] != 'r') {
         return false;
     }
@@ -90,87 +117,108 @@ bool is_valid_reg(char *arg) {
     }
 
     /* Convert the register number to an integer */
-    int reg_num = arg[1] - '0';
+    reg_num = arg[1] - '0';
 
     /* Ensure the register number is within bounds (0 to NUM_REGISTERS - 1) */
     return reg_num >= 0 && reg_num < NUM_REGISTERS && arg[2] == '\0';
 }
 
+/**
+ * @brief Validates if an argument represents a valid immediate number.
+ * 
+ * This function checks if the given argument is a valid immediate number (e.g., #5, #-3).
+ * 
+ * @param arg The argument to validate.
+ * @return true if the argument is a valid immediate number, false otherwise.
+ */
 bool is_valid_immediate_number(char *arg) {
-    if (arg == NULL) {
+    int i; /* Loop variable */
+
+    /* Ensure the argument is not NULL and starts with '#' */
+    if (arg == NULL || arg[0] != '#') {
         return false;
     }
 
-    /* Check if the first character is a digit or a sign */
-    if (arg[0] == '#') {
-        int i;
-        for (i = (arg[1] == '+' || arg[1] == '-') ? 2 : 1; arg[i] != '\0'; i++) {
-            if (!isdigit(arg[i])) {
-                return false; /* Non-digit character found */
-            }
+    /* Check if the characters after '#' are valid digits or signs */
+    for (i = (arg[1] == '+' || arg[1] == '-') ? 2 : 1; arg[i] != '\0'; i++) {
+        if (!isdigit(arg[i])) {
+            return false; /* Non-digit character found */
         }
-
-        return true; /* Valid number */
     }
 
-    return false; /* Invalid number */
+    return true; /* Valid immediate number */
 }
 
+/**
+ * @brief Validates if an argument represents a valid number.
+ * 
+ * This function checks if the given argument is a valid number (e.g., 5, -3).
+ * 
+ * @param arg The argument to validate.
+ * @return true if the argument is a valid number, false otherwise.
+ */
 bool is_valid_number(char *arg) {
+    int i; /* Loop variable */
+
+    /* Ensure the argument is not NULL */
     if (arg == NULL) {
         return false;
     }
 
-    /* Check if the first character is a digit or a sign */
-    if (isdigit(arg[0]) || arg[0] == '+' || arg[0] == '-') {
-        int i;
-        for (i = 1; arg[i] != '\0'; i++) {
-            if (!isdigit(arg[i])) {
-                return false; /* Non-digit character found */
-            }
+    /* Check if the characters are valid digits or signs */
+    for (i = (arg[0] == '+' || arg[0] == '-') ? 1 : 0; arg[i] != '\0'; i++) {
+        if (!isdigit(arg[i])) {
+            return false; /* Non-digit character found */
         }
-
-        return true; /* Valid number */
     }
 
-    return false; /* Invalid number */
+    return true; /* Valid number */
 }
 
-/* Is valid mode */
+/**
+ * @brief Validates if an argument represents a valid addressing mode.
+ * 
+ * This function checks if the given argument is a valid addressing mode.
+ * 
+ * @param arg The argument to validate.
+ * @return true if the argument is a valid addressing mode, false otherwise.
+ */
 bool is_valid_mode(char *arg) {
+    /* Ensure the argument is not NULL */
     if (arg == NULL) {
         return false;
     }
 
-    if (arg[0] == 'r') {
-        /* Register case (e.g., r0, r1, r9) */
+    /* Check for valid addressing modes */
+    if (arg[0] == 'r' || arg[0] == '#' || arg[0] == '&') {
         return true;
-    } else if (arg[0] == '#') {
-        /* Immediate number case (e.g., #5, #-3) */
-        return true;
-    } else if (arg[0] == '&') {
-        /* Relative addressing case (e.g., &START, &END) */
-        return true;
-    } else {
-        /* Direct addressing case (e.g., MAIN, END, basically labels) */
-        return isalpha(arg[0]);
+    } else if (isalpha(arg[0])) {
+        return true; /* Direct addressing case (e.g., labels) */
     }
 
-    return false;
+    return false; /* Invalid addressing mode */
 }
 
+/**
+ * @brief Validates if an argument represents a valid string.
+ * 
+ * This function checks if the given argument is a valid string enclosed in double quotes.
+ * 
+ * @param arg The argument to validate.
+ * @return true if the argument is a valid string, false otherwise.
+ */
 bool is_valid_string(char *arg) {
-    if (arg == NULL) {
+    int i; /* Loop variable */
+
+    /* Ensure the argument is not NULL and starts with a double quote */
+    if (arg == NULL || arg[0] != '"') {
         return false;
     }
 
-    /* Check if the first character is a double quote */
-    if (arg[0] == '"') {
-        int i;
-        for (i = 1; arg[i] != '\0'; i++) {
-            if (arg[i] == '"') {
-                return true; /* Valid string */
-            }
+    /* Check for a closing double quote */
+    for (i = 1; arg[i] != '\0'; i++) {
+        if (arg[i] == '"') {
+            return true; /* Valid string */
         }
     }
 
@@ -180,50 +228,117 @@ bool is_valid_string(char *arg) {
 /* -----VALIDATORS END----- */
 
 
+/**
+ * @brief Processes an operand and creates an extra word if required.
+ * 
+ * This function handles the logic for creating an extra word based on the addressing mode
+ * of the given operand. It validates the operand and generates the appropriate extra word.
+ * 
+ * @param mode The addressing mode of the operand.
+ * @param arg The operand argument.
+ * @param labels The linked list of labels.
+ * @param externs The linked list of externs.
+ * @param line The current line number.
+ * @param errors Pointer to the error counter.
+ * @return A pointer to the created `Word` if an extra word is required, or NULL otherwise.
+ */
+Word* process_operand(int8_t mode, char *arg, LinkedList *labels, LinkedList *externs, uint8_t line, uint8_t *errors) {
+    Word *extra_instruction = NULL; /* Pointer to the extra instruction */
 
+    switch (mode) {
+        case IMMEDIATE_ADRS:
+            /* Immediate addressing requires an extra word */
+            if (!is_valid_immediate_number(arg)) {
+                error_with_code(INVALID_IMMEDIATE_VALUE, line, errors);
+                break;
+            }
+            extra_instruction = create_word_from_number(extract_number(arg), 1, 0, 0);
+            break;
 
+        case DIRECT_ADRS: {
+            /* Direct addressing requires an extra word */
+            LinkedList *ptr = get_node_by_label(labels, arg);
+            if (ptr != NULL) {
+                extra_instruction = create_word_from_number(ptr->value.number, 0, 1, 0);
+            } else {
+                ptr = get_node_by_label(externs, arg);
+                if (ptr != NULL) {
+                    extra_instruction = create_word_from_number(ptr->value.number, 0, 0, 1);
+                } else {
+                    error_with_code(LABEL_NOT_FOUND, line, errors);
+                }
+            }
+            break;
+        }
 
+        case RELATIVE_ADRS: {
+            /* Relative addressing requires an extra word */
+            arg++; /* Skip the '&' character */
+            LinkedList *ptr = get_node_by_label(labels, arg);
+            if (ptr != NULL) {
+                extra_instruction = create_word_from_number(ptr->value.number - line, 1, 0, 0);
+            } else {
+                error_with_code(LABEL_NOT_FOUND, line, errors);
+            }
+            break;
+        }
 
+        case DIRECT_REGISTER_ADRS:
+            /* Direct register addressing requires no extra word */
+            if (!is_valid_reg(arg)) {
+                error_with_code(REGISTER_OUT_OF_BOUNDS, line, errors);
+            }
+            break;
 
+        default:
+            break;
+    }
 
-
-
-
-
-
-
-
-
+    return extra_instruction;
+}
 
 
 Command commands[]; /* Declare variable prototype, imported from opcode.h */
 
-void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext){
-    int i; /* Loop variable */
+/**
+ * @brief Assembles the input file into machine code.
+ * 
+ * This function performs the preprocessing, first pass, and second pass of the assembler.
+ * It processes the input file, extracts labels, macros, and instructions, and generates
+ * the corresponding output files for machine code, entries, and externs.
+ * 
+ * @param file The input file to assemble.
+ * @param am The preprocessed file (after macro expansion).
+ * @param ob The output file for machine code.
+ * @param ent The output file for entry labels.
+ * @param ext The output file for extern labels.
+ */
+void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext) {
+    /* Variable declarations */
+    int i;                          /* Loop variable */
+    char buffer[BUFFER_SIZE];       /* Buffer for reading lines */
+    uint8_t line = START_LINE;      /* Current line number */
+    LinkedList *labels = NULL;      /* Linked list for labels */
+    LinkedList *entries = NULL;     /* Linked list for entry labels */
+    LinkedList *externs = NULL;     /* Linked list for extern labels */
+    FILE *preprocessed = am;        /* Temporary file for preprocessed content */
+    uint8_t errors = 0;             /* Counter for errors during runtime */
+    uint8_t ic = 0;                 /* Instruction counter */
+    uint8_t dc = 0;                 /* Data counter */
+    bool is_command = false;        /* Flag to indicate if a valid command is found */
+    bool stay_in_line = false;      /* Flag to indicate if we should stay on the same line */
 
-    char buffer[BUFFER_SIZE]; /* Declare buffer for lines reading */
+    /* Step 1: Preprocessing */
+    preprocess(file, preprocessed); /* Expand macros and preprocess the input file */
+    rewind(preprocessed);           /* Rewind the preprocessed file for further processing */
 
-    uint8_t line = START_LINE; /* Index of our current reading line */
+    /* Step 2: First Pass */
+    first_pass(preprocessed, &labels, &entries, &externs, &errors); /* Extract labels and validate syntax */
+    rewind(preprocessed);           /* Rewind the preprocessed file for the second pass */
 
-    LinkedList *labels = NULL;
-    LinkedList *entries = NULL;
-    LinkedList *externs = NULL;
-
-    FILE *preprocessed = am; /* After macro file, we'll denote 'preprocessed' */
-    uint8_t errors = 0; /* Counter for the numbers of errors during runtime */
-
-    uint8_t ic = 0; /* Instructions counter */
-    uint8_t dc = 0; /* Data counter */
-
-
-
-    preprocess(file, preprocessed); /* Preprocess our file, and insert the data into the temporary file declared above. */
-    rewind(preprocessed); /* Rewind to the beginning of our file, to be read again. */
-    first_pass(preprocessed, &labels, &entries, &externs, &errors); /* First pass to extract labels and externs. */
-    rewind(preprocessed); /* Rewind to the beginning of our file, to be read again. */
-    if (errors > 0){
-        /* If there were errors, we will not continue */
-        fprintf(stderr, "Errors found in first pass. Exiting...\n");
+    /* Check for errors after the first pass */
+    if (errors > 0) {
+        fprintf(stderr, "Errors found in the first pass. Exiting...\n");
         fclose(preprocessed);
         fclose(am);
         fclose(ob);
@@ -232,10 +347,10 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext){
         return;
     }
 
+    /* Debugging: Print extracted labels */
     print_labels(labels);
 
-    bool is_command = false;
-    bool stay_in_line = false;
+    /* Step 3: Second Pass */
     while (1){
         char *command; /* The first token separated by a comma is our actual command. */
         if (stay_in_line){
@@ -246,65 +361,58 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext){
                 break; /* EOF has been reached, or an error has occured. */
             }
             
-            /* Because fgets includes the new line charcter, we remove it from the end of the string. */
-            buffer[strcspn(buffer, "\n")] = '\0';
-            command = strtok(buffer, " ");
+            buffer[strcspn(buffer, "\n")] = '\0'; /* Remove newline character automatically inserted by fgets */
+            command = strtok(buffer, " "); /* Tokenize the command (e.g, mov, add, stop) */
         }
         
         if (command == NULL){
+            /* If the command tokenized is null, it might mean this is an empty line, just skip it */
             continue;
         }
 
+        /* If the current token ends in a ':', it means this is a label declaration */
         if (command[strlen(command) - 1] == ':'){
-            /* If the command ends with a colon, it is a label */
-            stay_in_line = true;
+            stay_in_line = true; /* Skip to the afterwards contents of the current line */
             continue;
         }
 
-        if (command[0] == '.'){
+        if (command[0] == '.') {
+            /* Handle directives (e.g., .data, .string) */
+            command++; /* Skip the '.' character */
 
-            /* Variable declaration */
-            command++; /* Increase pointer, to dismiss '.' symbol */            
-
-            /* Copy metadata into a buffer to prevent strtok issues */
             if (!strcmp(command, "data")) {
-                /*
-                
-                    Every instruction should contain the numerical value (without A,R,E)
-                
-                */
-
+                /* Handle .data directive */
                 char *metadata = strtok(NULL, "");
-                if (metadata == NULL){
+                if (metadata == NULL) {
                     error_with_code(MISSING_DATA, line, &errors);
                     return;
                 }
 
-                char *current = metadata; /* Start processing the metadata string */
+                char *current = metadata;
                 while (*current != '\0') {
                     skip_leading_spaces(&current); /* Skip leading spaces */
-            
+
                     char *number_start = current; /* Mark the start of the number */
-            
+
                     /* Find the end of the current number */
                     while (*current != ',' && *current != '\0') {
                         current++;
                     }
-            
+
                     /* Null-terminate the current number */
                     char temp = *current;
                     *current = '\0';
-            
+
                     /* Validate and process the number */
                     if (!is_valid_number(number_start)) {
                         error_with_code(INVALID_DATA_VALUE, line, &errors);
                         break;
                     }
-            
+
                     Word *instruction = create_word_from_only_number((int8_t)atoi(number_start));
                     print_word_hex(instruction, &line, ob);
                     dc++;
-            
+
                     /* Restore the character and move to the next number */
                     *current = temp;
                     if (*current == ',') {
@@ -312,72 +420,62 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext){
                     }
                 }
             } else if (!strcmp(command, "string")) {
-                /*
-                    
-                    Every character is converted into its ASCII character, as an instruction, excluding (A,R,E)
-
-                */
-
+                /* Handle .string directive */
                 char *metadata = strtok(NULL, " ");
-                if (metadata == NULL){
+                if (metadata == NULL) {
                     error_with_code(MISSING_DATA, line, &errors);
                     return;
                 }
 
-                uint8_t counter = 0; /* Counter for length of array */
-
-                if (!is_valid_string(metadata)){
+                if (!is_valid_string(metadata)) {
                     /* Invalid string format */
                     error_with_code(INVALID_STRING_FORMAT, line, &errors);
                 } else {
-                    metadata++; /* Advance to ignore the opening (") symbol */
-                    while (*metadata != '"' && *metadata != '\0') { /* Loop until closing quote or end of string */
-                        Word *instruction = create_word_from_only_number((int8_t)(*metadata)); /* Convert character to instruction */
-                        print_word_hex(instruction, &line, ob); /* Print the instruction */
-                        
-                        metadata++; /* Move to the next character */
+                    metadata++; /* Skip the opening double quote */
+                    while (*metadata != '"' && *metadata != '\0') {
+                        Word *instruction = create_word_from_only_number((int8_t)(*metadata));
+                        print_word_hex(instruction, &line, ob);
+                        metadata++;
                         dc++;
                     }
-    
-                    /* Print out null terminator */
-                    Word *instruction = create_word_from_only_number(0); /* Null terminator is assigned the 0 value */
-                    print_word_hex(instruction, &line, ob); /* Print the instruction */
+
+                    /* Add null terminator */
+                    Word *instruction = create_word_from_only_number(0);
+                    print_word_hex(instruction, &line, ob);
                     dc++;
                 }
             }
-            
+
             continue;
         }
-        
-        
 
-        char *arg1 = strtok(NULL, ","); /* The 2nd token should correspond to the first argument */
-        skip_leading_spaces(&arg1);
-        char *arg2 = strtok(NULL, ","); /* The 3rd token should correspond to the second argument */
-        skip_leading_spaces(&arg2);
-        char *arg3 = strtok(NULL, ","); /* Extra argument! (Strictly more than possible.) */
+        char *arg1 = strtok(NULL, ","); /* Tokenize 1st argument */
+        skip_leading_spaces(&arg1); /* Skip leading spaces of the arg1 argument (e.g, from __r0 -> r0 ) */
+        char *arg2 = strtok(NULL, ","); /* Tokenize 2nd argument */
+        skip_leading_spaces(&arg2); /* Skip leading spaces of the arg2 argument (e.g, from __r5 -> r5 ) */
+        char *arg3 = strtok(NULL, ","); /* Extraneous tokenized argument, mainly for extraneous text checking */
 
-        for (i = 0; i < sizeof(commands)/sizeof(commands[0]); i++){ /* Iterate over the commands table */
-            Command cmd = commands[i]; /* Declare a variable to store the current iterated command */
-            if (!strcmp(command, cmd.name)){ /* Check whether the command and the read command match with their names */
-                /* 
-                    Define all of our values representing the instruction.
-                    Later inserted into the word to create a machine instruction.
-                */
-                
+        /* Loop through commands table to match the command */
+        for (i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
+            Command cmd = commands[i]; /* Store the command metadata */
+
+            /* Check whether the command and the read command match with their names */
+            if (!strcmp(command, cmd.name)) {
                 is_command = true;
 
-                /* Command metadata */
-                uint8_t opcode = cmd.opcode;
-                uint8_t funct = cmd.funct;
+                /* Declare variables at the beginning of the scope */
+                uint8_t opcode = cmd.opcode; /* Command opcode */
+                uint8_t funct = cmd.funct;   /* Command function code */
+                int8_t src_mode = -1;        /* Source addressing mode (-1 indicates uninitialized) */
+                uint8_t src_reg = 0;         /* Source register */
+                int8_t dest_mode = -1;       /* Destination addressing mode (-1 indicates uninitialized) */
+                uint8_t dest_reg = 0;        /* Destination register */
+                uint8_t before_errors = errors; /* Track errors before processing the command */
+                Word *extra_instruction_one = NULL; /* Extra instruction for certain addressing modes */
+                Word *extra_instruction_two = NULL; /* Extra instruction for certain addressing modes */
+                char *arg = NULL;            /* Argument pointer for processing operands */
 
-                /* Command arguments metadata */
-                int8_t src_mode = -1;
-                uint8_t src_reg = 0;
-                int8_t dest_mode = -1;
-                uint8_t dest_reg = 0;
-
-                uint8_t before_errors = errors;
+                /* Handle commands with different operand numbers */
                 switch (cmd.operands_num){ /* Respect different operand numbers */
                     case 2:
                         /* Commands with 2 operands */
@@ -478,223 +576,23 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext){
                     continue;
                 }
 
-                /* Switch block scope variables to be reused */
-                Word *extra_instruction_one = NULL; /* An extra instruction (only for certain types of commands) */
-                Word *extra_instruction_two = NULL; /* An extra instruction (only for certain types of commands) */
-
-                char* arg = (cmd.operands_num == 2 ? arg2 : arg1);
-                switch (dest_mode){
-                    case IMMEDIATE_ADRS:
-                        /*
-                        
-                            Immediate addressing requires an extra word afterwards.
-                    
-                        */
-
-                        if (!is_valid_immediate_number(arg)){
-                            /* Invalid number */
-                            error_with_code(INVALID_IMMEDIATE_VALUE, line, &errors);
-                            break;
-                        }
-
-                        extra_instruction_one = create_word_from_number(extract_number(arg), 1, 0, 0); /* Create the extra instruction from that number */
-                        break;
-                    case DIRECT_ADRS: {
-                        /*
-
-                            Direct addressing, requires an extra word afterwards.
-                        
-                        */
-
-                        LinkedList* ptr = get_node_by_label(labels, arg);
-                        
-                        if (ptr != NULL){
-                            /* If this is a label */
-                            extra_instruction_one = create_word_from_number(
-                                ptr->value.number,
-                                0, 1, 0
-                            ); /* Define the extra instruction, using that number solely */
-                        
-                            add_label_number(&labels, arg, line);
-                        } else {
-                            ptr = get_node_by_label(externs, arg); /* Search in externs */
-                            if (ptr != NULL){
-                                extra_instruction_one = create_word_from_number(
-                                    ptr->value.number,
-                                    0, 0, 1
-                                ); /* Define the extra instruction, using that number solely */
-                                
-                                add_label_number(&externs, arg, line);
-                            } else {
-                                error_with_code(LABEL_NOT_FOUND, line, &errors);
-                                break;
-                            }
-                        }
-                        
-
-                        break;
-                    }
-
-                    case RELATIVE_ADRS: {
-                        /*
-                        
-                            Relative addressing, requires an extra word afterwards.
-                        
-                        */
-
-                        arg++; /* Advance from the '&' */
-                        LinkedList* ptr = get_node_by_label(labels, arg);
-                        
-                        if (ptr != NULL){
-                            /* If this is a label */
-                            extra_instruction_one = create_word_from_number(
-                                ptr->value.number - line,
-                                1, 0, 0
-                            ); /* Define the extra instruction, using that number solely */
-                            
-                            add_label_number(&labels, arg, line);
-                        } else {
-                            ptr = get_node_by_label(externs, arg); /* Search in externs */
-                            if (ptr != NULL){
-                                extra_instruction_one = create_word_from_number(
-                                    ptr->value.number - line,
-                                    1, 0, 0
-                                ); /* Define the extra instruction, using that number solely */
-                                
-                                add_label_number(&externs, arg, line);
-                            } else {
-                                error_with_code(LABEL_NOT_FOUND, line, &errors);
-                                break;
-                            }
-                        }
-                        
-                        break;
-                    }
-
-                    case DIRECT_REGISTER_ADRS:
-                        /*
-                        
-                            Direct register addressing, requires no extra word afterwards.
-                        
-                        */
-
-                        if (!is_valid_reg(arg)){
-                            /* Invalid register */
-                            error_with_code(REGISTER_OUT_OF_BOUNDS, line, &errors);
-                        }
-                        
-                        break;
-
-                    default:
-                        break;
-                }
-
-                if (cmd.operands_num == 2){
+                if (cmd.operands_num == 2) {
                     /*
                         The only possible scenario now is 2 operands, and a src_mode left untreated.
-                        Therefore we must also look into the dest_mode, in this scenario.
+                        Therefore, we must also look into the src_mode in this scenario.
                     */
-
+                
+                    /* Process the source operand */
                     arg = arg1; /* The source argument */
-                    switch (src_mode){
-                        case IMMEDIATE_ADRS:
-                            /*
-                            
-                                Immediate addressing requires an extra word afterwards.
-                        
-                            */
-    
-                            if (!is_valid_immediate_number(arg)){
-                                /* Invalid number */
-                                error_with_code(INVALID_IMMEDIATE_VALUE, line, &errors);
-                                break;
-                            }
-
-                            extra_instruction_two = create_word_from_number(extract_number(arg), 1, 0, 0); /* Create the extra instruction from that number */
-                            break;
-                        case DIRECT_ADRS: {
-                            /*
-    
-                                Direct addressing, requires an extra word afterwards.
-                            
-                            */
-    
-                            LinkedList* ptr = get_node_by_label(labels, arg1);
-                            
-                            if (ptr != NULL){
-                                /* If this is a label */
-                                extra_instruction_two = create_word_from_number(
-                                    ptr->value.number,
-                                    0, 1, 0
-                                ); /* Define the extra instruction, using that number solely */
-                            } else {
-                                ptr = get_node_by_label(externs, arg1); /* Search in externs */
-                                if (ptr != NULL){
-                                    extra_instruction_two = create_word_from_number(
-                                        ptr->value.number,
-                                        0, 0, 1
-                                    ); /* Define the extra instruction, using that number solely */
-                                }
-                            }
-                            
-    
-                            break;
-                        }
-
-                        case RELATIVE_ADRS: {
-                            /*
-                            
-                                Relative addressing, requires an extra word afterwards.
-                            
-                            */
-    
-                            arg++;
-                            LinkedList* ptr = get_node_by_label(labels, arg);
-                            
-                            if (ptr != NULL){
-                                /* If this is a label */
-                                extra_instruction_two = create_word_from_number(
-                                    ptr->value.number - line,
-                                    1, 0, 0
-                                ); /* Define the extra instruction, using that number solely */
-                                
-                                add_label_number(&labels, arg, line);
-                            } else {
-                                ptr = get_node_by_label(externs, arg); /* Search in externs */
-                                if (ptr != NULL){
-                                    extra_instruction_two = create_word_from_number(
-                                        ptr->value.number - line,
-                                        1, 0, 0
-                                    ); /* Define the extra instruction, using that number solely */
-                                    
-                                    add_label_number(&externs, arg, line);
-                                }
-                            }
-                        }
-
-                        case DIRECT_REGISTER_ADRS:
-                            /*
-                            
-                                Direct register addressing, requires no extra word afterwards.
-                            
-                            */
-
-                            if (!is_valid_reg(arg)){
-                                /* Invalid register */
-                                error_with_code(REGISTER_OUT_OF_BOUNDS, line, &errors);
-                            }
-                            
-                            break;
-                        
-                        default:
-                            break;
-                    }
+                    extra_instruction_one = process_operand(src_mode, arg, labels, externs, line, &errors);
                 }
+                
+                /* Process the destination operand */
+                arg = (cmd.operands_num == 2) ? arg2 : arg1; /* The destination argument */
+                extra_instruction_two = process_operand(dest_mode, arg, labels, externs, line, &errors);
 
-                /*
-                    Initialize values back to 0 (the -1 was a temporary flag for the absence of such mode!)
-                */
-               
+                
+                /* Return the modes back to 0 if they were -1 (which was temporary flagging for the absence of such operand!) */
                 if (src_mode == -1){ src_mode = 0; }
                 if (dest_mode == -1){ dest_mode = 0; }
 
@@ -702,17 +600,17 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext){
                     opcode, src_mode, src_reg, 
                     dest_mode, dest_reg,
                     funct, 1, 0, 0
-                ); /* Create instruction with respect to the metadata of the line */
+                ); /* Create instruction (absolute, for main instructions) */
 
-                print_word_hex(instruction, &line, ob); /* Output the line in hexadecimal form */
+                print_word_hex(instruction, &line, ob); /* Output the line to .ob file */
 
                 if (extra_instruction_one != NULL){
-                    /* If there is an extra instruction, we will output it */
+                    /* If there is an extra instruction, we will output it to .ob file */
                     print_word_hex(extra_instruction_one, &line, ob);
                 }
 
                 if (extra_instruction_two != NULL){
-                    /* If there is an extra instruction, we will output it */
+                    /* If there is an extra instruction, we will output it to .ob file */
                     print_word_hex(extra_instruction_two, &line, ob);
                 }
 
@@ -726,28 +624,41 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext){
         }
     }
 
-    /* Write down entries */
-    LinkedList* curr;
+    /**
+     * @brief Writes entries and externs to their respective files and finalizes the output.
+     * 
+     * This section writes the entry and extern labels to their respective files, frees the
+     * allocated memory for the labels list, and appends the instruction and data counters (IC and DC)
+     * to the beginning of the object file.
+     */
 
-    curr = entries;
-    while (curr != NULL){
-        fprintf(ent, "%s %07d\n", curr->label, curr->value.number);
-        curr = curr->next;
+    /* Write entry labels to the .ent file */
+    LinkedList *curr = entries; /* Pointer to traverse the entries linked list */
+    while (curr != NULL) {
+        fprintf(ent, "%s %07d\n", curr->label, curr->value.number); /* Write label and value */
+        curr = curr->next; /* Move to the next entry */
     }
 
-    /* Write down externs */
-    curr = externs;
-    while (curr != NULL){
-        fprintf(ext, "%s %07d\n", curr->label, curr->value.number);
-        curr = curr->next;
+    /* Write extern labels to the .ext file */
+    curr = externs; /* Reuse the pointer to traverse the externs linked list */
+    while (curr != NULL) {
+        fprintf(ext, "%s %07d\n", curr->label, curr->value.number); /* Write label and value */
+        curr = curr->next; /* Move to the next extern */
     }
-    
-    free_label_list(labels); /* Free labels list memory, that is manually allocated */
-    
-    rewind(ob); /* Rewind file to append IC and DC at the top */
 
-    char status[10]; /* About ~10 characters */
-    sprintf(status, "  %i %i\n", ic, dc);
+    /* Free the memory allocated for the labels linked list */
+    free_label_list(labels);
+
+    /* Rewind the object file to append IC and DC at the top */
+    rewind(ob);
+
+    /* Write the instruction counter (IC) and data counter (DC) to the object file */
+    char status[10]; /* Buffer to hold the IC and DC string */
+    sprintf(status, "  %i %i\n", ic, dc); /* Format IC and DC into the buffer */
+
+    /* Optionally prepend the status to the object file (if implemented) */
     /* prepend_to_file(ob, status); */
-    printf("%s", status); /* Print for now */
+
+    /* Print the IC and DC to the console for debugging purposes */
+    printf("%s", status);
 }
