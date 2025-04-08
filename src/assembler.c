@@ -12,7 +12,6 @@
 #include "../header/labels.h"
 #include "../header/preprocessing.h"
 #include "../header/errors.h"
-#include "../header/files.h"
 
 uint8_t errors; /* Prototype for errors */
 
@@ -375,7 +374,8 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext) {
     LinkedList *labels = NULL;      /* Linked list for labels */
     LinkedList *entries = NULL;     /* Linked list for entry labels */
     LinkedList *externs = NULL;     /* Linked list for extern labels */
-    WordList *data_list = NULL; /* Linked list for data instructions */
+    WordList *inst_list = NULL;     /* Linked list for instruction instructions */
+    WordList *data_list = NULL;     /* Linked list for data instructions */
     FILE *preprocessed = am;        /* Temporary file for preprocessed content */
     uint8_t errors = 0;             /* Counter for errors during runtime */
     uint8_t ic = 0;                 /* Instruction counter */
@@ -659,16 +659,19 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext) {
                     funct, 1, 0, 0
                 ); /* Create instruction (absolute, for main instructions) */
 
-                print_word_hex(instruction, &line, ob); /* Output the line to .ob file */
+                ic++;
+                add_word(&inst_list, instruction); /* Add the instruction to the instruction list */
 
                 if (extra_instruction_one != NULL){
                     /* If there is an extra instruction, we will output it to .ob file */
-                    print_word_hex(extra_instruction_one, &line, ob);
+                    ic++;
+                    add_word(&inst_list, extra_instruction_one); /* Add the instruction to the instruction list */
                 }
 
                 if (extra_instruction_two != NULL){
                     /* If there is an extra instruction, we will output it to .ob file */
-                    print_word_hex(extra_instruction_two, &line, ob);
+                    ic++;
+                    add_word(&inst_list, extra_instruction_two); /* Add the instruction to the instruction list */
                 }
 
                 break;
@@ -681,14 +684,34 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext) {
         }
     }
 
+    /* Write the instruction counter (IC) and data counter (DC) to the object file */
+    char status[10]; /* Buffer to hold the IC and DC string */
+    sprintf(status, "  %i %i\n", ic, dc); /* Format IC and DC into the buffer */
 
+    /* Print the IC and DC to the console for debugging purposes */
+    fprintf(ob, "%s", status);
+
+
+    /* Print out instructions (which come before data) */
+    reverse_list(&inst_list); /* Reverse the data list for correct order */
+    WordList *curr_wl = inst_list; /* Pointer to traverse the data list */
+    while (curr_wl != NULL) {
+        print_word_hex(curr_wl->word, &line, ob); /* Output the data instruction to .ob file */
+
+        WordList* curr_wl_nptr = curr_wl;
+        curr_wl = curr_wl->next; /* Move to the next data instruction */
+        free(curr_wl_nptr); /* Free linked list from memory */
+    }
 
     /* Print out directives (which come after instructions) */
     reverse_list(&data_list); /* Reverse the data list for correct order */
-    WordList *curr_wl = data_list; /* Pointer to traverse the data list */
+    curr_wl = data_list; /* Pointer to traverse the data list */
     while (curr_wl != NULL) {
         print_word_hex(curr_wl->word, &line, ob); /* Output the data instruction to .ob file */
+
+        WordList* curr_wl_nptr = curr_wl;
         curr_wl = curr_wl->next; /* Move to the next data instruction */
+        free(curr_wl_nptr); /* Free linked list from memory */
     }
 
     /**
@@ -715,17 +738,4 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext) {
 
     /* Free the memory allocated for the labels linked list */
     free_label_list(labels);
-
-    /* Rewind the object file to append IC and DC at the top */
-    rewind(ob);
-
-    /* Write the instruction counter (IC) and data counter (DC) to the object file */
-    char status[10]; /* Buffer to hold the IC and DC string */
-    sprintf(status, "HELLO\n", ic, dc); /* Format IC and DC into the buffer */
-
-    /* Optionally prepend the status to the object file (if implemented) */
-    /* prepend_to_file(ob, status); */
-
-    /* Print the IC and DC to the console for debugging purposes */
-    printf("%s", status);
 }
