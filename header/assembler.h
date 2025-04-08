@@ -4,10 +4,10 @@
 #include <stdio.h>
 
 /* Buffer size for reading lines from input files */
-#define BUFFER_SIZE 1024 
+#define BUFFER_SIZE 81
 
 /* Maximum size allowed for macro contents */
-#define MACRO_SIZE 1024 
+#define MACRO_SIZE 81*5 
 
 /* Number of registers available in the assembler (e.g., r0 to r7) */
 #define NUM_REGISTERS 8 

@@ -23,34 +23,43 @@ void insert_file_into_file(FILE* dest, FILE* src) {
  * 
  * This function writes the given string (`st`) to the beginning of the file (`file`),
  * while preserving the original contents of the file. It uses a temporary file to
- * store the original contents during the operation.
+ * store the modified content and replaces the original file with it.
  * 
- * @param file The file to prepend the string to.
+ * @param file The file pointer to prepend the string to.
  * @param st The string to prepend to the file.
  */
-void prepend_to_file(FILE* file, const char *st) {
-    /* First, save the original file contents */
-    FILE* temp = tmpfile(); /* Create a temporary file */
+void prepend_to_file(FILE *file, const char *st) {
+    /* Create a temporary file */
+    FILE *temp = tmpfile();
     if (temp == NULL) {
-        perror("Can not create temp file."); /* Print error if temp file creation fails */
+        perror("Failed to create a temporary file");
         return;
     }
-    
-    /* Copy original file contents to temp */
-    rewind(file); /* Move the file pointer to the beginning */
-    insert_file_into_file(temp, file);
-    
-    /* Clear the original file */
-    rewind(file); /* Move the file pointer to the beginning */
-    freopen(NULL, "w+", file); /* Reopen in write mode, truncating the file */
-    
+
     /* Write the string to prepend */
-    fprintf(file, "%s", st);
-    
-    /* Now append the original content from temp file */
-    rewind(temp); /* Move the temp file pointer to the beginning */
-    insert_file_into_file(file, temp);
-    
+    fprintf(temp, "%s", st);
+
+    /* Rewind the original file to read its contents */
+    rewind(file);
+
+    /* Append the original file contents to the temporary file */
+    char buffer[BUFFER_SIZE];
+    while (fgets(buffer, BUFFER_SIZE, file)) {
+        fputs(buffer, temp);
+    }
+
+    /* Rewind both files */
+    rewind(file);
+    rewind(temp);
+
+    /* Overwrite the original file with the temporary file's content */
+    while (fgets(buffer, BUFFER_SIZE, temp)) {
+        fputs(buffer, file);
+    }
+
+    /* Truncate the file to remove any leftover content */
+    fflush(file);
+    ftruncate(fileno(file), ftell(file));
+
     fclose(temp); /* Close the temporary file */
-    return;
 }

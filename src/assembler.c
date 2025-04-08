@@ -297,6 +297,60 @@ Word* process_operand(int8_t mode, char *arg, LinkedList *labels, LinkedList *ex
     return extra_instruction;
 }
 
+typedef struct WordList {
+    Word *word; /* Pointer to the word */
+    struct WordList *next; /* Pointer to the next word in the list */
+} WordList;
+
+/**
+ * @brief Adds a label with a numeric value to the linked list.
+ * 
+ * This function creates a new node with the given label and numeric value
+ * and inserts it at the beginning of the linked list for O(1) insertion.
+ * 
+ * @param head Pointer to the head of the linked list.
+ * @param label The label name to add.
+ * @param number The numeric value to associate with the label.
+ */
+void add_word(WordList **head, Word* word) {
+    if (!word){
+        fprintf(stderr, "Error: Word pointer is NULL\n");
+        return;
+    }
+
+    WordList *new_node = (WordList *)malloc(sizeof(WordList));
+    if (!new_node) {
+        perror("Failed to allocate memory");
+        exit(EXIT_FAILURE);
+    }
+
+    new_node->word = word;
+    new_node->next = *head; /* Insert at the beginning for O(1) insertion */
+    *head = new_node;
+}
+
+/**
+ * @brief Reverses our words linked list, for parsing at the end.
+ * 
+ * This function traverses the linked list and frees each node and its associated word.
+ * With an O(n) time complexity, a sufficienly efficient algorithm.
+ * 
+ * @param head Pointer to the head of the linked list.
+ */
+void reverse_list(WordList **head) {
+    WordList *prev = NULL;
+    WordList *current = *head;
+    WordList *next = NULL;
+
+    while (current != NULL) {
+        next = current->next; /* Store the next node */
+        current->next = prev; /* Reverse the link */
+        prev = current;       /* Move prev to current */
+        current = next;       /* Move to the next node */
+    }
+
+    *head = prev; /* Update the head pointer */
+}
 
 Command commands[]; /* Declare variable prototype, imported from opcode.h */
 
@@ -321,12 +375,15 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext) {
     LinkedList *labels = NULL;      /* Linked list for labels */
     LinkedList *entries = NULL;     /* Linked list for entry labels */
     LinkedList *externs = NULL;     /* Linked list for extern labels */
+    WordList *data_list = NULL; /* Linked list for data instructions */
     FILE *preprocessed = am;        /* Temporary file for preprocessed content */
     uint8_t errors = 0;             /* Counter for errors during runtime */
     uint8_t ic = 0;                 /* Instruction counter */
     uint8_t dc = 0;                 /* Data counter */
     bool is_command = false;        /* Flag to indicate if a valid command is found */
     bool stay_in_line = false;      /* Flag to indicate if we should stay on the same line */
+
+
 
     /* Step 1: Preprocessing */
     preprocess(file, preprocessed); /* Expand macros and preprocess the input file */
@@ -410,7 +467,7 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext) {
                     }
 
                     Word *instruction = create_word_from_only_number((int8_t)atoi(number_start));
-                    print_word_hex(instruction, &line, ob);
+                    add_word(&data_list, instruction); /* Add the instruction to the data list */
                     dc++;
 
                     /* Restore the character and move to the next number */
@@ -434,14 +491,14 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext) {
                     metadata++; /* Skip the opening double quote */
                     while (*metadata != '"' && *metadata != '\0') {
                         Word *instruction = create_word_from_only_number((int8_t)(*metadata));
-                        print_word_hex(instruction, &line, ob);
+                        add_word(&data_list, instruction); /* Add the instruction to the data list */
                         metadata++;
                         dc++;
                     }
 
                     /* Add null terminator */
                     Word *instruction = create_word_from_only_number(0);
-                    print_word_hex(instruction, &line, ob);
+                    add_word(&data_list, instruction); /* Add the null terminator to the data list */
                     dc++;
                 }
             }
@@ -624,6 +681,16 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext) {
         }
     }
 
+
+
+    /* Print out directives (which come after instructions) */
+    reverse_list(&data_list); /* Reverse the data list for correct order */
+    WordList *curr_wl = data_list; /* Pointer to traverse the data list */
+    while (curr_wl != NULL) {
+        print_word_hex(curr_wl->word, &line, ob); /* Output the data instruction to .ob file */
+        curr_wl = curr_wl->next; /* Move to the next data instruction */
+    }
+
     /**
      * @brief Writes entries and externs to their respective files and finalizes the output.
      * 
@@ -654,7 +721,7 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext) {
 
     /* Write the instruction counter (IC) and data counter (DC) to the object file */
     char status[10]; /* Buffer to hold the IC and DC string */
-    sprintf(status, "  %i %i\n", ic, dc); /* Format IC and DC into the buffer */
+    sprintf(status, "HELLO\n", ic, dc); /* Format IC and DC into the buffer */
 
     /* Optionally prepend the status to the object file (if implemented) */
     /* prepend_to_file(ob, status); */
