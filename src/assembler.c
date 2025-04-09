@@ -12,8 +12,9 @@
 #include "../header/labels.h"
 #include "../header/preprocessing.h"
 #include "../header/errors.h"
+#include "../header/validators.h"
 
-uint8_t errors; /* Prototype for errors */
+uint8_t errors; /* Prototype for errors counter, accessed widely through this file context */
 
 
 
@@ -92,139 +93,9 @@ int8_t extract_number(char *arg) {
 
 /* -----GETTERS END----- */
 
-/* -----VALIDATORS START----- */
 
-/**
- * @brief Validates if an argument represents a valid register.
- * 
- * This function checks if the given argument is a valid register (e.g., r0, r1).
- * 
- * @param arg The argument to validate.
- * @return true if the argument is a valid register, false otherwise.
- */
-bool is_valid_reg(char *arg) {
-    int reg_num; /* Variable to store the register number */
 
-    /* Ensure the argument is not NULL and starts with 'r' */
-    if (arg == NULL || arg[0] != 'r') {
-        return false;
-    }
 
-    /* Check if the second character is a digit */
-    if (!isdigit(arg[1])) {
-        return false;
-    }
-
-    /* Convert the register number to an integer */
-    reg_num = arg[1] - '0';
-
-    /* Ensure the register number is within bounds (0 to NUM_REGISTERS - 1) */
-    return reg_num >= 0 && reg_num < NUM_REGISTERS && arg[2] == '\0';
-}
-
-/**
- * @brief Validates if an argument represents a valid immediate number.
- * 
- * This function checks if the given argument is a valid immediate number (e.g., #5, #-3).
- * 
- * @param arg The argument to validate.
- * @return true if the argument is a valid immediate number, false otherwise.
- */
-bool is_valid_immediate_number(char *arg) {
-    int i; /* Loop variable */
-
-    /* Ensure the argument is not NULL and starts with '#' */
-    if (arg == NULL || arg[0] != '#') {
-        return false;
-    }
-
-    /* Check if the characters after '#' are valid digits or signs */
-    for (i = (arg[1] == '+' || arg[1] == '-') ? 2 : 1; arg[i] != '\0'; i++) {
-        if (!isdigit(arg[i])) {
-            return false; /* Non-digit character found */
-        }
-    }
-
-    return true; /* Valid immediate number */
-}
-
-/**
- * @brief Validates if an argument represents a valid number.
- * 
- * This function checks if the given argument is a valid number (e.g., 5, -3).
- * 
- * @param arg The argument to validate.
- * @return true if the argument is a valid number, false otherwise.
- */
-bool is_valid_number(char *arg) {
-    int i; /* Loop variable */
-
-    /* Ensure the argument is not NULL */
-    if (arg == NULL) {
-        return false;
-    }
-
-    /* Check if the characters are valid digits or signs */
-    for (i = (arg[0] == '+' || arg[0] == '-') ? 1 : 0; arg[i] != '\0'; i++) {
-        if (!isdigit(arg[i])) {
-            return false; /* Non-digit character found */
-        }
-    }
-
-    return true; /* Valid number */
-}
-
-/**
- * @brief Validates if an argument represents a valid addressing mode.
- * 
- * This function checks if the given argument is a valid addressing mode.
- * 
- * @param arg The argument to validate.
- * @return true if the argument is a valid addressing mode, false otherwise.
- */
-bool is_valid_mode(char *arg) {
-    /* Ensure the argument is not NULL */
-    if (arg == NULL) {
-        return false;
-    }
-
-    /* Check for valid addressing modes */
-    if (arg[0] == 'r' || arg[0] == '#' || arg[0] == '&') {
-        return true;
-    } else if (isalpha(arg[0])) {
-        return true; /* Direct addressing case (e.g., labels) */
-    }
-
-    return false; /* Invalid addressing mode */
-}
-
-/**
- * @brief Validates if an argument represents a valid string.
- * 
- * This function checks if the given argument is a valid string enclosed in double quotes.
- * 
- * @param arg The argument to validate.
- * @return true if the argument is a valid string, false otherwise.
- */
-bool is_valid_string(char *arg) {
-    int i; /* Loop variable */
-
-    /* Ensure the argument is not NULL and starts with a double quote */
-    if (arg == NULL || arg[0] != '"') {
-        return false;
-    }
-
-    /* Check for a closing double quote */
-    for (i = 1; arg[i] != '\0'; i++) {
-        if (arg[i] == '"') {
-            return true; /* Valid string */
-        }
-    }
-
-    return false; /* Invalid string */
-}
-
-/* -----VALIDATORS END----- */
 
 
 /**
@@ -366,7 +237,7 @@ Command commands[]; /* Declare variable prototype, imported from opcode.h */
  * @param ent The output file for entry labels.
  * @param ext The output file for extern labels.
  */
-void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext) {
+void assemble(FILE* file, FILE* am, char* base_name) {
     /* Variable declarations */
     int i;                          /* Loop variable */
     char buffer[BUFFER_SIZE];       /* Buffer for reading lines */
@@ -382,6 +253,10 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext) {
     uint8_t dc = 0;                 /* Data counter */
     bool is_command = false;        /* Flag to indicate if a valid command is found */
     bool stay_in_line = false;      /* Flag to indicate if we should stay on the same line */
+    FILE* ob;
+    FILE* ent;
+    FILE* ext;
+    char path[256];
 
 
 
@@ -398,9 +273,6 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext) {
         fprintf(stderr, "Errors found in the first pass. Exiting...\n");
         fclose(preprocessed);
         fclose(am);
-        fclose(ob);
-        fclose(ent);
-        fclose(ext);
         return;
     }
 
@@ -509,7 +381,7 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext) {
         char *arg1 = strtok(NULL, ","); /* Tokenize 1st argument */
         skip_leading_spaces(&arg1); /* Skip leading spaces of the arg1 argument (e.g, from __r0 -> r0 ) */
         char *arg2 = strtok(NULL, ","); /* Tokenize 2nd argument */
-        skip_leading_spaces(&arg2); /* Skip leading spaces of the arg2 argument (e.g, from __r5 -> r5 ) */
+        skip_leading_spaces(&arg2); /* Skip leading spaces of the arg2 argument (e.g, from ___#5 -> #5 ) */
         char *arg3 = strtok(NULL, ","); /* Extraneous tokenized argument, mainly for extraneous text checking */
 
         /* Loop through commands table to match the command */
@@ -684,56 +556,87 @@ void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext) {
         }
     }
 
-    /* Write the instruction counter (IC) and data counter (DC) to the object file */
-    char status[10]; /* Buffer to hold the IC and DC string */
-    sprintf(status, "  %i %i\n", ic, dc); /* Format IC and DC into the buffer */
+    /* Only if no errors occured, create output files */
+    if (errors == 0){
+        snprintf(path, sizeof(path), "./outputs/%s.ob", base_name);
+        ob = fopen(path, "w+");
+        if (!ob) {
+            fprintf(stderr, "Error opening .ob file for writing: %s\n", path);
+            fclose(file);
+            return EXIT_FAILURE;
+        }
 
-    /* Print the IC and DC to the console for debugging purposes */
-    fprintf(ob, "%s", status);
+        /* Write the instruction counter (IC) and data counter (DC) to the object file, dynamically */
 
+        int ic_length = snprintf(NULL, 0, "%d", ic); /* Receive length for ic */
+        int padding = 9 - ic_length; /* Formula for padding that matches our scenario */
+        fprintf(ob, "%*d %d\n", padding, ic, dc); /* Aligns IC and DC with an 8-character gap */
 
-    /* Print out instructions (which come before data) */
-    reverse_list(&inst_list); /* Reverse the data list for correct order */
-    WordList *curr_wl = inst_list; /* Pointer to traverse the data list */
-    while (curr_wl != NULL) {
-        print_word_hex(curr_wl->word, &line, ob); /* Output the data instruction to .ob file */
+        /* Print out instructions (which come before data) */
+        reverse_list(&inst_list); /* Reverse the data list for correct order */
+        WordList *curr_wl = inst_list; /* Pointer to traverse the data list */
+        while (curr_wl != NULL) {
+            print_word_hex(curr_wl->word, &line, ob); /* Output the data instruction to .ob file */
 
-        WordList* curr_wl_nptr = curr_wl;
-        curr_wl = curr_wl->next; /* Move to the next data instruction */
-        free(curr_wl_nptr); /* Free linked list from memory */
-    }
+            WordList* curr_wl_nptr = curr_wl;
+            curr_wl = curr_wl->next; /* Move to the next data instruction */
+            free(curr_wl_nptr); /* Free linked list from memory */
+        }
 
-    /* Print out directives (which come after instructions) */
-    reverse_list(&data_list); /* Reverse the data list for correct order */
-    curr_wl = data_list; /* Pointer to traverse the data list */
-    while (curr_wl != NULL) {
-        print_word_hex(curr_wl->word, &line, ob); /* Output the data instruction to .ob file */
+        /* Print out directives (which come after instructions) */
+        reverse_list(&data_list); /* Reverse the data list for correct order */
+        curr_wl = data_list; /* Pointer to traverse the data list */
+        while (curr_wl != NULL) {
+            print_word_hex(curr_wl->word, &line, ob); /* Output the data instruction to .ob file */
 
-        WordList* curr_wl_nptr = curr_wl;
-        curr_wl = curr_wl->next; /* Move to the next data instruction */
-        free(curr_wl_nptr); /* Free linked list from memory */
-    }
+            WordList* curr_wl_nptr = curr_wl;
+            curr_wl = curr_wl->next; /* Move to the next data instruction */
+            free(curr_wl_nptr); /* Free linked list from memory */
+        }
 
-    /**
-     * @brief Writes entries and externs to their respective files and finalizes the output.
-     * 
-     * This section writes the entry and extern labels to their respective files, frees the
-     * allocated memory for the labels list, and appends the instruction and data counters (IC and DC)
-     * to the beginning of the object file.
-     */
+        /**
+        * @brief Writes entries and externs to their respective files and finalizes the output.
+        * 
+        * This section writes the entry and extern labels to their respective files, frees the
+        * allocated memory for the labels list, and appends the instruction and data counters (IC and DC)
+        * to the beginning of the object file.
+        */
 
-    /* Write entry labels to the .ent file */
-    LinkedList *curr = entries; /* Pointer to traverse the entries linked list */
-    while (curr != NULL) {
-        fprintf(ent, "%s %07d\n", curr->label, curr->value.number); /* Write label and value */
-        curr = curr->next; /* Move to the next entry */
-    }
+        LinkedList *curr; /* LinkedList iterator variable */
 
-    /* Write extern labels to the .ext file */
-    curr = externs; /* Reuse the pointer to traverse the externs linked list */
-    while (curr != NULL) {
-        fprintf(ext, "%s %07d\n", curr->label, curr->value.number); /* Write label and value */
-        curr = curr->next; /* Move to the next extern */
+        /* Write entry labels to the .ent file, in case they are non-empty */
+        if (entries != NULL){ /* Check if entries list is non-empty */
+            snprintf(path, sizeof(path), "./outputs/%s.ent", base_name);
+            ent = fopen(path, "w+");
+            if (!ent) {
+                fprintf(stderr, "Error opening .ent file for writing: %s\n", path);
+                fclose(file);
+                return EXIT_FAILURE;
+            }
+
+            curr = entries; /* Pointer to traverse the entries linked list */
+            while (curr != NULL) {
+                fprintf(ent, "%s %07d\n", curr->label, curr->value.number); /* Write label and value */
+                curr = curr->next; /* Move to the next entry */
+            }
+        }
+
+        if (externs != NULL){ /* Check if exeterns list is non-empty */
+            /* Write extern labels to the .ext file */
+            snprintf(path, sizeof(path), "./outputs/%s.ext", base_name);
+            ext = fopen(path, "w+");
+            if (!ext) {
+                fprintf(stderr, "Error opening .ext file for writing: %s\n", ext);
+                fclose(file);
+                return EXIT_FAILURE;
+            }
+
+            curr = externs; /* Reuse the pointer to traverse the externs linked list */
+            while (curr != NULL) {
+                fprintf(ext, "%s %07d\n", curr->label, curr->value.number); /* Write label and value */
+                curr = curr->next; /* Move to the next extern */
+            }
+        }
     }
 
     /* Free the memory allocated for the labels linked list */

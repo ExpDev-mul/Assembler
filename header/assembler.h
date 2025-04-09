@@ -30,6 +30,6 @@
  * @param ent Output file for entries.
  * @param ext Output file for externs.
  */
-void assemble(FILE* file, FILE* am, FILE* ob, FILE* ent, FILE* ext);
+void assemble(FILE* file, FILE* am, char* base_name);
 
 #endif

@@ -47,46 +47,12 @@ int process_file(const char *input_file) {
         return EXIT_FAILURE;
     }
 
-    snprintf(path, sizeof(path), "./outputs/%s.ob", base_name_copy);
-    FILE *ob = fopen(path, "w");
-    if (!ob) {
-        fprintf(stderr, "Error opening .ob file for writing: %s\n", path);
-        fclose(file);
-        fclose(am);
-        return EXIT_FAILURE;
-    }
-
-    snprintf(path, sizeof(path), "./outputs/%s.ext", base_name_copy);
-    FILE *ext = fopen(path, "w");
-    if (!ext) {
-        fprintf(stderr, "Error opening .ext file for writing: %s\n", path);
-        fclose(file);
-        fclose(am);
-        fclose(ob);
-        return EXIT_FAILURE;
-    }
-
-    snprintf(path, sizeof(path), "./outputs/%s.ent", base_name_copy);
-    FILE *ent = fopen(path, "w");
-    if (!ent) {
-        fprintf(stderr, "Error opening .ent file for writing: %s\n", path);
-        fclose(file);
-        fclose(am);
-        fclose(ob);
-        fclose(ext);
-        return EXIT_FAILURE;
-    }
-
     /* Assemble the input file */
-    assemble(file, am, ob, ent, ext);
+    assemble(file, am, base_name_copy);
 
     /* Close all files */
     fclose(file);
     fclose(am);
-    fclose(ob);
-    fclose(ext);
-    fclose(ent);
-
     return EXIT_SUCCESS;
 }
 
