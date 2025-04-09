@@ -20,10 +20,9 @@
  * @param externs_ptr Pointer to the linked list of extern labels.
  * @param errors Pointer to the error counter to track the number of errors.
  */
-void first_pass(FILE* file, LinkedList** labels_ptr, LinkedList** entries_ptr, LinkedList** externs_ptr, uint8_t* errors) {
+void first_pass(FILE* file, LinkedList** labels_ptr, LinkedList** entries_ptr, LinkedList** externs_ptr, uint8_t* errors, uint8_t* number_of_lines) {
     /* Line reading buffers */
     char buffer[BUFFER_SIZE];
-    char buffer_copy[BUFFER_SIZE];
 
     /* Initialize linked lists */
     LinkedList* labels = *labels_ptr;
@@ -38,11 +37,12 @@ void first_pass(FILE* file, LinkedList** labels_ptr, LinkedList** entries_ptr, L
             break; /* EOF has been reached, or an error has occurred */
         }
 
+        (*number_of_lines)++;
         /* Remove the newline character from the end of the string */
         buffer[strcspn(buffer, "\n")] = '\0';
 
-        strcpy(buffer_copy, buffer);
         char *prefix = strtok(buffer, " "); /* Extract the first token as the command */
+        skip_leading_spaces(&prefix); /* Skip leading spaces */
 
         if (prefix == NULL) {
             continue; /* Skip empty lines */
@@ -51,7 +51,7 @@ void first_pass(FILE* file, LinkedList** labels_ptr, LinkedList** entries_ptr, L
         line++; /* Advance to the next line */
 
         if (prefix[0] == ';') {
-            /* Skip comments (lines starting with ';') */
+            /* Skip evaluating comments (lines starting with ';') */
             continue;
         }
 

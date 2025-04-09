@@ -13,13 +13,61 @@
 #include "../header/preprocessing.h"
 #include "../header/errors.h"
 #include "../header/validators.h"
+#include "../header/second_pass.h"
 
-uint8_t errors; /* Prototype for errors counter, accessed widely through this file context */
+void add_word(WordList **head, Word *word) {
+    if (!word) {
+        fprintf(stderr, "Error: Word pointer is NULL\n");
+        return;
+    }
 
+    WordList *new_node = (WordList *)malloc(sizeof(WordList));
+    if (!new_node) {
+        perror("Failed to allocate memory");
+        exit(EXIT_FAILURE);
+    }
 
+    new_node->data.word = word; /* Store the Word pointer in the union */
+    new_node->is_line = false;  /* Indicate that this node stores a Word */
+    new_node->next = *head;     /* Insert at the beginning for O(1) insertion */
+    *head = new_node;
+}
 
+void add_line(WordList **head, uint8_t line) {
+    WordList *new_node = (WordList *)malloc(sizeof(WordList));
+    if (!new_node) {
+        perror("Failed to allocate memory");
+        exit(EXIT_FAILURE);
+    }
 
-/* -----GETTERS START----- */
+    new_node->data.line = line; /* Store the line number in the union */
+    new_node->is_line = true;   /* Indicate that this node stores a line */
+    new_node->next = *head;     /* Insert at the beginning for O(1) insertion */
+    *head = new_node;
+}
+
+/**
+ * @brief Reverses our words linked list, for parsing at the end.
+ * 
+ * This function traverses the linked list and frees each node and its associated word.
+ * With an O(n) time complexity, a sufficienly efficient algorithm.
+ * 
+ * @param head Pointer to the head of the linked list.
+ */
+void reverse_list(WordList **head) {
+    WordList *prev = NULL;
+    WordList *current = *head;
+    WordList *next = NULL;
+
+    while (current != NULL) {
+        next = current->next; /* Store the next node */
+        current->next = prev; /* Reverse the link */
+        prev = current;       /* Move prev to current */
+        current = next;       /* Move to the next node */
+    }
+
+    *head = prev; /* Update the head pointer */
+}
 
 /**
  * @brief Retrieves the addressing mode of an argument.
@@ -91,28 +139,30 @@ int8_t extract_number(char *arg) {
     return (int8_t)num;
 }
 
-/* -----GETTERS END----- */
-
-
-
-
-
-
 /**
- * @brief Processes an operand and creates an extra word if required.
+ * @brief Processes an operand based on its addressing mode and generates an extra instruction if needed.
  * 
- * This function handles the logic for creating an extra word based on the addressing mode
- * of the given operand. It validates the operand and generates the appropriate extra word.
+ * This function handles the processing of an operand in the second pass of the assembler. It validates
+ * the operand, determines its addressing mode, and generates an extra instruction if required. The function
+ * also updates the relative address flag if the operand is a label or external reference.
  * 
- * @param mode The addressing mode of the operand.
- * @param arg The operand argument.
- * @param labels The linked list of labels.
- * @param externs The linked list of externs.
- * @param line The current line number.
- * @param errors Pointer to the error counter.
- * @return A pointer to the created `Word` if an extra word is required, or NULL otherwise.
+ * @param mode The addressing mode of the operand (e.g., IMMEDIATE_ADRS, DIRECT_ADRS, etc.).
+ * @param arg The operand argument as a string (e.g., "#5", "LABEL", "&LABEL").
+ * @param labels A linked list of labels defined in the program.
+ * @param externs A linked list of external labels.
+ * @param line The current line number being processed in the source file.
+ * @param memory_line The current memory line number in the instruction list.
+ * @param errors A pointer to the error counter, incremented if an error occurs.
+ * @param offset The offset from the current line to the memory image line.
+ * @param flag_relative_address A pointer to a flag that indicates if the operand is a relative address.
+ * 
+ * @return A pointer to a `Word` structure representing the extra instruction, or NULL if no extra instruction is needed.
  */
-Word* process_operand(int8_t mode, char *arg, LinkedList *labels, LinkedList *externs, uint8_t line, uint8_t *errors) {
+Word* process_operand(int8_t mode, char *arg, 
+                        LinkedList *labels, LinkedList *externs, 
+                        uint8_t line, uint8_t memory_line, 
+                        uint8_t *errors, uint8_t offset, 
+                        uint8_t* flag_relative_address) {
     Word *extra_instruction = NULL; /* Pointer to the extra instruction */
 
     switch (mode) {
@@ -129,11 +179,11 @@ Word* process_operand(int8_t mode, char *arg, LinkedList *labels, LinkedList *ex
             /* Direct addressing requires an extra word */
             LinkedList *ptr = get_node_by_label(labels, arg);
             if (ptr != NULL) {
-                extra_instruction = create_word_from_number(ptr->value.number, 0, 1, 0);
+                *flag_relative_address = memory_line;
             } else {
                 ptr = get_node_by_label(externs, arg);
                 if (ptr != NULL) {
-                    extra_instruction = create_word_from_number(ptr->value.number, 0, 0, 1);
+                    *flag_relative_address = memory_line;
                 } else {
                     error_with_code(LABEL_NOT_FOUND, line, errors);
                 }
@@ -167,120 +217,27 @@ Word* process_operand(int8_t mode, char *arg, LinkedList *labels, LinkedList *ex
     return extra_instruction;
 }
 
-typedef struct WordList {
-    Word *word; /* Pointer to the word */
-    struct WordList *next; /* Pointer to the next word in the list */
-} WordList;
-
-/**
- * @brief Adds a label with a numeric value to the linked list.
- * 
- * This function creates a new node with the given label and numeric value
- * and inserts it at the beginning of the linked list for O(1) insertion.
- * 
- * @param head Pointer to the head of the linked list.
- * @param label The label name to add.
- * @param number The numeric value to associate with the label.
- */
-void add_word(WordList **head, Word* word) {
-    if (!word){
-        fprintf(stderr, "Error: Word pointer is NULL\n");
-        return;
-    }
-
-    WordList *new_node = (WordList *)malloc(sizeof(WordList));
-    if (!new_node) {
-        perror("Failed to allocate memory");
-        exit(EXIT_FAILURE);
-    }
-
-    new_node->word = word;
-    new_node->next = *head; /* Insert at the beginning for O(1) insertion */
-    *head = new_node;
-}
-
-/**
- * @brief Reverses our words linked list, for parsing at the end.
- * 
- * This function traverses the linked list and frees each node and its associated word.
- * With an O(n) time complexity, a sufficienly efficient algorithm.
- * 
- * @param head Pointer to the head of the linked list.
- */
-void reverse_list(WordList **head) {
-    WordList *prev = NULL;
-    WordList *current = *head;
-    WordList *next = NULL;
-
-    while (current != NULL) {
-        next = current->next; /* Store the next node */
-        current->next = prev; /* Reverse the link */
-        prev = current;       /* Move prev to current */
-        current = next;       /* Move to the next node */
-    }
-
-    *head = prev; /* Update the head pointer */
-}
-
 Command commands[]; /* Declare variable prototype, imported from opcode.h */
-
-/**
- * @brief Assembles the input file into machine code.
- * 
- * This function performs the preprocessing, first pass, and second pass of the assembler.
- * It processes the input file, extracts labels, macros, and instructions, and generates
- * the corresponding output files for machine code, entries, and externs.
- * 
- * @param file The input file to assemble.
- * @param am The preprocessed file (after macro expansion).
- * @param ob The output file for machine code.
- * @param ent The output file for entry labels.
- * @param ext The output file for extern labels.
- */
-void assemble(FILE* file, FILE* am, char* base_name) {
-    /* Variable declarations */
-    int i;                          /* Loop variable */
-    char buffer[BUFFER_SIZE];       /* Buffer for reading lines */
-    uint8_t line = START_LINE;      /* Current line number */
-    LinkedList *labels = NULL;      /* Linked list for labels */
-    LinkedList *entries = NULL;     /* Linked list for entry labels */
-    LinkedList *externs = NULL;     /* Linked list for extern labels */
-    WordList *inst_list = NULL;     /* Linked list for instruction instructions */
-    WordList *data_list = NULL;     /* Linked list for data instructions */
-    FILE *preprocessed = am;        /* Temporary file for preprocessed content */
-    uint8_t errors = 0;             /* Counter for errors during runtime */
-    uint8_t ic = 0;                 /* Instruction counter */
-    uint8_t dc = 0;                 /* Data counter */
-    bool is_command = false;        /* Flag to indicate if a valid command is found */
-    bool stay_in_line = false;      /* Flag to indicate if we should stay on the same line */
-    FILE* ob;
-    FILE* ent;
-    FILE* ext;
-    char path[256];
-
-
-
-    /* Step 1: Preprocessing */
-    preprocess(file, preprocessed); /* Expand macros and preprocess the input file */
-    rewind(preprocessed);           /* Rewind the preprocessed file for further processing */
-
-    /* Step 2: First Pass */
-    first_pass(preprocessed, &labels, &entries, &externs, &errors); /* Extract labels and validate syntax */
-    rewind(preprocessed);           /* Rewind the preprocessed file for the second pass */
-
-    /* Check for errors after the first pass */
-    if (errors > 0) {
-        fprintf(stderr, "Errors found in the first pass. Exiting...\n");
-        fclose(preprocessed);
-        fclose(am);
-        return;
-    }
-
-    /* Debugging: Print extracted labels */
-    print_labels(labels);
-
-    /* Step 3: Second Pass */
+void second_pass(FILE *preprocessed, LinkedList **labels_ptr, LinkedList **entries_ptr, LinkedList **externs_ptr, WordList **inst_list_ptr, WordList **data_list_ptr, uint8_t *ic, uint8_t *dc, uint8_t *errors, uint8_t number_of_lines, uint8_t *offsets_map) {
+    /* Dereference pointers into variables with the same names as in the original code */
+    int i; /* Loop variable */
+    LinkedList *labels = *labels_ptr;
+    LinkedList *entries = *entries_ptr;
+    LinkedList *externs = *externs_ptr;
+    WordList *inst_list = *inst_list_ptr;
+    WordList *data_list = *data_list_ptr;
+    char buffer[BUFFER_SIZE];
+    bool stay_in_line = false;
+    uint8_t memory_line = START_LINE; /* Current memory line number */
+    uint8_t line = 0; /* Actual reading line from the file */
+    
+    bool is_command = false;
+    uint8_t offset = 0; /* Define the offset from our current line to the memory image line */
+    
     while (1){
+        offsets_map[line] = offset; /* Store our current line offset */
+
+        line++; /* Increment crurent line index */
         char *command; /* The first token separated by a comma is our actual command. */
         if (stay_in_line){
             stay_in_line = false;
@@ -313,7 +270,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
                 /* Handle .data directive */
                 char *metadata = strtok(NULL, "");
                 if (metadata == NULL) {
-                    error_with_code(MISSING_DATA, line, &errors);
+                    error_with_code(MISSING_DATA, line, errors);
                     return;
                 }
 
@@ -334,13 +291,13 @@ void assemble(FILE* file, FILE* am, char* base_name) {
 
                     /* Validate and process the number */
                     if (!is_valid_number(number_start)) {
-                        error_with_code(INVALID_DATA_VALUE, line, &errors);
+                        error_with_code(INVALID_DATA_VALUE, line, errors);
                         break;
                     }
 
                     Word *instruction = create_word_from_only_number((int8_t)atoi(number_start));
                     add_word(&data_list, instruction); /* Add the instruction to the data list */
-                    dc++;
+                    (*dc)++;
 
                     /* Restore the character and move to the next number */
                     *current = temp;
@@ -352,26 +309,26 @@ void assemble(FILE* file, FILE* am, char* base_name) {
                 /* Handle .string directive */
                 char *metadata = strtok(NULL, " ");
                 if (metadata == NULL) {
-                    error_with_code(MISSING_DATA, line, &errors);
+                    error_with_code(MISSING_DATA, line, errors);
                     return;
                 }
 
                 if (!is_valid_string(metadata)) {
                     /* Invalid string format */
-                    error_with_code(INVALID_STRING_FORMAT, line, &errors);
+                    error_with_code(INVALID_STRING_FORMAT, line, errors);
                 } else {
                     metadata++; /* Skip the opening double quote */
                     while (*metadata != '"' && *metadata != '\0') {
                         Word *instruction = create_word_from_only_number((int8_t)(*metadata));
                         add_word(&data_list, instruction); /* Add the instruction to the data list */
                         metadata++;
-                        dc++;
+                        (*dc)++;
                     }
 
                     /* Add null terminator */
                     Word *instruction = create_word_from_only_number(0);
                     add_word(&data_list, instruction); /* Add the null terminator to the data list */
-                    dc++;
+                    (*dc)++;
                 }
             }
 
@@ -399,7 +356,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
                 uint8_t src_reg = 0;         /* Source register */
                 int8_t dest_mode = -1;       /* Destination addressing mode (-1 indicates uninitialized) */
                 uint8_t dest_reg = 0;        /* Destination register */
-                uint8_t before_errors = errors; /* Track errors before processing the command */
+                uint8_t before_errors = *errors; /* Track errors before processing the command */
                 Word *extra_instruction_one = NULL; /* Extra instruction for certain addressing modes */
                 Word *extra_instruction_two = NULL; /* Extra instruction for certain addressing modes */
                 char *arg = NULL;            /* Argument pointer for processing operands */
@@ -410,20 +367,20 @@ void assemble(FILE* file, FILE* am, char* base_name) {
                         /* Commands with 2 operands */
                         if (arg1 == NULL || arg2 == NULL){
                             /* Missing arguments */
-                            error_with_code(MISSING_ARGUMENTS, line, &errors);
+                            error_with_code(MISSING_ARGUMENTS, line, errors);
                             break;
                         }
 
                         if (arg3 != NULL){
                             /* Too many arguments */
-                            error_with_code(EXTRANEOUS_TEXT, line, &errors);
+                            error_with_code(EXTRANEOUS_TEXT, line, errors);
                             break;
                         }
 
                         /* Extract destination metadata */
                         if (!is_valid_mode(arg2)){
                             /* Invalid mode */
-                            error_with_code(INVALID_DEST_ADDRESSING, line, &errors);
+                            error_with_code(INVALID_DEST_ADDRESSING, line, errors);
                             break;
                         }
                         
@@ -434,7 +391,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
 
                         if (!is_valid_mode(arg1)){
                             /* Invalid mode */
-                            error_with_code(INVALID_SOURCE_ADDRESSING, line, &errors);
+                            error_with_code(INVALID_SOURCE_ADDRESSING, line, errors);
                             break;
                         }
 
@@ -446,20 +403,20 @@ void assemble(FILE* file, FILE* am, char* base_name) {
                         /* Command with 1 operand */
                         if (arg1 == NULL){
                             /* Missing argument */
-                            error_with_code(MISSING_ARGUMENTS, line, &errors);
+                            error_with_code(MISSING_ARGUMENTS, line, errors);
                             break;
                         }
 
                         if (arg2 != NULL){
                             /* Too many arguments */
-                            error_with_code(EXTRANEOUS_TEXT, line, &errors);
+                            error_with_code(EXTRANEOUS_TEXT, line, errors);
                             break;
                         }
 
                         /* Extract destination metadata */
                         if (!is_valid_mode(arg1)){
                             /* Invalid mode */
-                            error_with_code(INVALID_DEST_ADDRESSING, line, &errors);
+                            error_with_code(INVALID_DEST_ADDRESSING, line, errors);
                             break;
                         }
 
@@ -469,7 +426,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
                     case 0:
                         if (arg1 != NULL){
                             /* Too many arguments */
-                            error_with_code(EXTRANEOUS_TEXT, line, &errors);
+                            error_with_code(EXTRANEOUS_TEXT, line, errors);
                             break;
                         }
 
@@ -478,32 +435,30 @@ void assemble(FILE* file, FILE* am, char* base_name) {
                         printf("Command %s contains too many operands.", cmd.name);
                         return;
                 }
-            
-                /*
-                    Debugging line
-                */
 
-                
                 /*
                 printf("%i,%i,%i,%i,%i,%i\n", opcode, src_mode, src_reg,  dest_mode, dest_reg, funct);
                 */
 
-                if (errors > before_errors){
+                if (*errors > before_errors){
                     /* There was an error throughout the switch statement */
                     continue;
                 }
 
                 if (src_mode != -1 && !cmd.addressing_src[src_mode]){
                     /* If there is a valid source mode yet not allowed */
-                    error_with_code(INVALID_SOURCE_ADDRESSING, line, &errors);
+                    error_with_code(INVALID_SOURCE_ADDRESSING, line, errors);
                     continue;
                 }
 
                 if (dest_mode != -1 && !cmd.addressing_dest[dest_mode]){
                     /* If there is a valid dest mode yet not allowed */
-                    error_with_code(INVALID_DEST_ADDRESSING, line, &errors);
+                    error_with_code(INVALID_DEST_ADDRESSING, line, errors);
                     continue;
                 }
+
+                uint8_t flag_relative_address_one = 0;
+                uint8_t flag_relative_address_two = 0;
 
                 if (cmd.operands_num == 2) {
                     /*
@@ -513,13 +468,12 @@ void assemble(FILE* file, FILE* am, char* base_name) {
                 
                     /* Process the source operand */
                     arg = arg1; /* The source argument */
-                    extra_instruction_one = process_operand(src_mode, arg, labels, externs, line, &errors);
+                    extra_instruction_one = process_operand(src_mode, arg, labels, externs, line, memory_line, errors, offset, &flag_relative_address_one);
                 }
                 
                 /* Process the destination operand */
                 arg = (cmd.operands_num == 2) ? arg2 : arg1; /* The destination argument */
-                extra_instruction_two = process_operand(dest_mode, arg, labels, externs, line, &errors);
-
+                extra_instruction_two = process_operand(dest_mode, arg, labels, externs, line, memory_line, errors, offset, &flag_relative_address_two);
                 
                 /* Return the modes back to 0 if they were -1 (which was temporary flagging for the absence of such operand!) */
                 if (src_mode == -1){ src_mode = 0; }
@@ -531,19 +485,32 @@ void assemble(FILE* file, FILE* am, char* base_name) {
                     funct, 1, 0, 0
                 ); /* Create instruction (absolute, for main instructions) */
 
-                ic++;
+                (*ic)++;
                 add_word(&inst_list, instruction); /* Add the instruction to the instruction list */
+                memory_line++;
 
                 if (extra_instruction_one != NULL){
                     /* If there is an extra instruction, we will output it to .ob file */
-                    ic++;
+                    (*ic)++;
+                    offset++;
                     add_word(&inst_list, extra_instruction_one); /* Add the instruction to the instruction list */
+                    memory_line++;
+                } else if (flag_relative_address_one != 0) {
+                    offset++;
+                    add_line(&inst_list, flag_relative_address_one);
+                    memory_line++;
                 }
 
                 if (extra_instruction_two != NULL){
                     /* If there is an extra instruction, we will output it to .ob file */
-                    ic++;
+                    (*ic)++;
+                    offset++;
                     add_word(&inst_list, extra_instruction_two); /* Add the instruction to the instruction list */
+                    memory_line++;
+                } else if (flag_relative_address_two != 0) {
+                    offset++;
+                    add_line(&inst_list, flag_relative_address_two);
+                    memory_line++;
                 }
 
                 break;
@@ -552,93 +519,15 @@ void assemble(FILE* file, FILE* am, char* base_name) {
 
         if (!is_command){
             /* Invalid command name */
-            error_with_code(INVALID_COMMAND_NAME, line, &errors);
+            error_with_code(INVALID_COMMAND_NAME, line, errors);
         }
     }
 
-    /* Only if no errors occured, create output files */
-    if (errors == 0){
-        snprintf(path, sizeof(path), "./outputs/%s.ob", base_name);
-        ob = fopen(path, "w+");
-        if (!ob) {
-            fprintf(stderr, "Error opening .ob file for writing: %s\n", path);
-            fclose(file);
-            return EXIT_FAILURE;
-        }
-
-        /* Write the instruction counter (IC) and data counter (DC) to the object file, dynamically */
-
-        int ic_length = snprintf(NULL, 0, "%d", ic); /* Receive length for ic */
-        int padding = 9 - ic_length; /* Formula for padding that matches our scenario */
-        fprintf(ob, "%*d %d\n", padding, ic, dc); /* Aligns IC and DC with an 8-character gap */
-
-        /* Print out instructions (which come before data) */
-        reverse_list(&inst_list); /* Reverse the data list for correct order */
-        WordList *curr_wl = inst_list; /* Pointer to traverse the data list */
-        while (curr_wl != NULL) {
-            print_word_hex(curr_wl->word, &line, ob); /* Output the data instruction to .ob file */
-
-            WordList* curr_wl_nptr = curr_wl;
-            curr_wl = curr_wl->next; /* Move to the next data instruction */
-            free(curr_wl_nptr); /* Free linked list from memory */
-        }
-
-        /* Print out directives (which come after instructions) */
-        reverse_list(&data_list); /* Reverse the data list for correct order */
-        curr_wl = data_list; /* Pointer to traverse the data list */
-        while (curr_wl != NULL) {
-            print_word_hex(curr_wl->word, &line, ob); /* Output the data instruction to .ob file */
-
-            WordList* curr_wl_nptr = curr_wl;
-            curr_wl = curr_wl->next; /* Move to the next data instruction */
-            free(curr_wl_nptr); /* Free linked list from memory */
-        }
-
-        /**
-        * @brief Writes entries and externs to their respective files and finalizes the output.
-        * 
-        * This section writes the entry and extern labels to their respective files, frees the
-        * allocated memory for the labels list, and appends the instruction and data counters (IC and DC)
-        * to the beginning of the object file.
-        */
-
-        LinkedList *curr; /* LinkedList iterator variable */
-
-        /* Write entry labels to the .ent file, in case they are non-empty */
-        if (entries != NULL){ /* Check if entries list is non-empty */
-            snprintf(path, sizeof(path), "./outputs/%s.ent", base_name);
-            ent = fopen(path, "w+");
-            if (!ent) {
-                fprintf(stderr, "Error opening .ent file for writing: %s\n", path);
-                fclose(file);
-                return EXIT_FAILURE;
-            }
-
-            curr = entries; /* Pointer to traverse the entries linked list */
-            while (curr != NULL) {
-                fprintf(ent, "%s %07d\n", curr->label, curr->value.number); /* Write label and value */
-                curr = curr->next; /* Move to the next entry */
-            }
-        }
-
-        if (externs != NULL){ /* Check if exeterns list is non-empty */
-            /* Write extern labels to the .ext file */
-            snprintf(path, sizeof(path), "./outputs/%s.ext", base_name);
-            ext = fopen(path, "w+");
-            if (!ext) {
-                fprintf(stderr, "Error opening .ext file for writing: %s\n", ext);
-                fclose(file);
-                return EXIT_FAILURE;
-            }
-
-            curr = externs; /* Reuse the pointer to traverse the externs linked list */
-            while (curr != NULL) {
-                fprintf(ext, "%s %07d\n", curr->label, curr->value.number); /* Write label and value */
-                curr = curr->next; /* Move to the next extern */
-            }
-        }
-    }
-
-    /* Free the memory allocated for the labels linked list */
-    free_label_list(labels);
+    /* Update the pointers to the linked lists */
+    *labels_ptr = labels;
+    *entries_ptr = entries;
+    *externs_ptr = externs;
+    *inst_list_ptr = inst_list;
+    *data_list_ptr = data_list;
 }
+

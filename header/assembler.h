@@ -7,7 +7,7 @@
 #define BUFFER_SIZE 81
 
 /* Maximum size allowed for macro contents */
-#define MACRO_SIZE 81*5 
+#define MACRO_SIZE BUFFER_SIZE*5 
 
 /* Number of registers available in the assembler (e.g., r0 to r7) */
 #define NUM_REGISTERS 8 
@@ -18,7 +18,7 @@
 #define RELATIVE_ADRS 2           /* Relative addressing (e.g., &label) */
 #define DIRECT_REGISTER_ADRS 3    /* Direct register addressing (e.g., r0, r1) */
 
-/* Starting line number for the assembler */
+/* Starting line number for the memory image (.ob file) */
 #define START_LINE 100 
 
 /**
@@ -26,9 +26,7 @@
  * 
  * @param file Input source file to be assembled.
  * @param am Preprocessed file after macro expansion.
- * @param ob Output file for the object code.
- * @param ent Output file for entries.
- * @param ext Output file for externs.
+ * @param base_name Base name for the output files (e.g., .ob, .ent, .ext).
  */
 void assemble(FILE* file, FILE* am, char* base_name);
 

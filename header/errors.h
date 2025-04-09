@@ -46,7 +46,7 @@ enum {
     EXTERN_ALREADY_DEFINED,         /* Extern label is already defined */
     ENTRY_ALREADY_DEFINED,          /* Entry label is already defined */
     EMPTY_LABEL_DECLARATION,        /* Empty label declaration */
-    CONFLICTING_ENTRY_AND_EXTERN,   /* Extern and entry cannot have the same name */
+    CONFLICTING_ENTRY_AND_EXTERN   /* Extern and entry cannot have the same name */
 };
 
 /**
