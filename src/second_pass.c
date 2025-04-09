@@ -341,6 +341,8 @@ void second_pass(FILE *preprocessed, LinkedList **labels_ptr, LinkedList **entri
         skip_leading_spaces(&arg2); /* Skip leading spaces of the arg2 argument (e.g, from ___#5 -> #5 ) */
         char *arg3 = strtok(NULL, ","); /* Extraneous tokenized argument, mainly for extraneous text checking */
 
+        /* printf("%s %s %s\n", command, arg1, arg2); */
+
         /* Loop through commands table to match the command */
         for (i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
             Command cmd = commands[i]; /* Store the command metadata */

@@ -5,6 +5,7 @@
 #include "../header/assembler.h"
 #include "../header/labels.h"
 #include "../header/lib.h"
+#include "../header/errors.h"
 
 /**
  * @brief Preprocesses the input file for the assembler.
@@ -58,6 +59,12 @@ void preprocess(FILE* file, FILE* temp) {
             }
 
             strcpy(macro_name, arg); /* Store the macro's name */
+
+            if (is_label_in_list(macros, macro_name)) {
+                error_with_code_only(MACRO_ALREADY_DEFINED);
+                continue;
+            }
+
             is_reading_macro = true; /* Enable macro reading mode */
             continue;
         }

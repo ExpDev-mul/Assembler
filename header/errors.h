@@ -19,7 +19,6 @@ enum {
     INVALID_DEST_ADDRESSING,        /* Invalid addressing mode for the destination operand */
 
     IMMEDIATE_NUMBER_DECLARATION,   /* Immediate number declaration is invalid */
-    MACRO_DECLARATION,              /* Missing or invalid macro declaration */
     EXTERN_IMPORT,                  /* Missing argument for extern import */
     ENTRY_MISSING_ARGUMENT,         /* Missing argument for entry declaration */
     MISSING_DATA,                   /* Missing data after .data directive */
@@ -34,19 +33,13 @@ enum {
     LABEL_ALREADY_DEFINED,          /* Label is already defined */
     LABEL_NOT_FOUND,                /* Label not found in the symbol table */
     INVALID_LABEL_FORMAT,           /* Invalid label format (e.g., starts with a number) */
-    INVALID_OPCODE,                 /* Invalid or unrecognized opcode */
-
-    FILE_OPEN_ERROR,                /* Error opening a file */
-    FILE_WRITE_ERROR,               /* Error writing to a file */
-    MEMORY_ALLOCATION_ERROR,        /* Memory allocation failed */
-    UNEXPECTED_EOF,                 /* Unexpected end of file during parsing */
-    INVALID_SYNTAX,                 /* General invalid syntax in the input file */
 
     REGISTER_OUT_OF_BOUNDS,         /* Register number is out of bounds (e.g., r8) */
     EXTERN_ALREADY_DEFINED,         /* Extern label is already defined */
     ENTRY_ALREADY_DEFINED,          /* Entry label is already defined */
     EMPTY_LABEL_DECLARATION,        /* Empty label declaration */
-    CONFLICTING_ENTRY_AND_EXTERN   /* Extern and entry cannot have the same name */
+    CONFLICTING_ENTRY_AND_EXTERN,   /* Extern and entry cannot have the same name */
+    MACRO_ALREADY_DEFINED,          /* Macro with that name already exists */
 };
 
 /**
@@ -57,5 +50,14 @@ enum {
  * @param errors_counter Pointer to the error counter to increment.
  */
 void error_with_code(int code, uint8_t line, uint8_t *errors_counter);
+
+/**
+ * @brief Outputs an error message corresponding to the given error code.
+ * 
+ * This function is used when the line number and error counter are not needed.
+ * 
+ * @param code The error code to report.
+ */
+void error_with_code_only(int code);
 
 #endif /* ERRORS_H */
