@@ -25,7 +25,7 @@ void preprocess(FILE* file, FILE* temp) {
     char macro_buffer[BUFFER_SIZE * 10]; /* Buffer to store macro content */
     char macro_name[10];                /* Buffer to store macro name */
 
-    LinkedList* macros = NULL;          /* Linked list to store macros */
+    SymbolList* macros = NULL;          /* Linked list to store macros */
     bool is_reading_macro = false;      /* Flag to indicate if we're reading a macro */
 
     while (1) {
@@ -87,7 +87,7 @@ void preprocess(FILE* file, FILE* temp) {
         }
 
         /* Check if the current line matches a macro name */
-        LinkedList* macro_ptr = get_node_by_label(macros, prefix);
+        SymbolList* macro_ptr = get_node_by_label(macros, prefix);
         if (macro_ptr != NULL) {
             /* If the macro exists, write its content to the temporary file */
             fputs(macro_ptr->value.buffer, temp);

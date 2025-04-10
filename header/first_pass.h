@@ -1,3 +1,17 @@
+/**
+ * @file first_pass.h
+ * @brief Header file for the first pass of the assembler.
+ * 
+ * This file defines the functionality for the first pass of the assembler. During this pass,
+ * the assembler processes the input file to extract labels, entries, and externs, and validates
+ * the syntax of the input. It also records any errors encountered during this stage.
+ * 
+ * Key Features:
+ * - Extracts and stores labels, entries, and externs in their respective symbol lists.
+ * - Validates the syntax of the input file.
+ * - Tracks and reports errors encountered during the first pass.
+ * - Prepares the data for the second pass by building the symbol table.
+ */
 #ifndef FIRST_PASS_H
 #define FIRST_PASS_H
 
@@ -17,8 +31,8 @@
  * @param externs_ptr Pointer to the linked list of extern labels.
  * @param errors Pointer to the error counter to track the number of errors.
  */
-void first_pass(FILE* file, LinkedList** labels_ptr, 
-                LinkedList** entries_ptr, LinkedList** externs_ptr, 
+void first_pass(FILE* file, SymbolList** labels_ptr, 
+                SymbolList** entries_ptr, SymbolList** externs_ptr, 
                 uint8_t* errors, uint8_t* number_of_lines);
 
 #endif /* FIRST_PASS_H */

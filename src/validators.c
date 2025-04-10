@@ -1,5 +1,4 @@
 #include <ctype.h>
-
 #include "../header/validators.h"
 #include "../header/lib.h"
 #include "../header/assembler.h"

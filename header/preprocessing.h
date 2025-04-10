@@ -1,3 +1,15 @@
+/**
+ * @file preprocessing.h
+ * @brief Header file for preprocessing tasks in the assembler.
+ * 
+ * This file defines the functionality for preprocessing the input file before the
+ * assembly process. It handles tasks such as macro expansion and cleaning up the
+ * input file to prepare it for the first pass.
+ * 
+ * Key Features:
+ * - Provides the `preprocess` function to handle macros and other preprocessing tasks.
+ * - Writes the preprocessed content to a temporary file for further assembly.
+ */
 #ifndef PREPROCESSING_C
 #define PREPROCESSING_C
 

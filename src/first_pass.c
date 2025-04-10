@@ -20,14 +20,14 @@
  * @param externs_ptr Pointer to the linked list of extern labels.
  * @param errors Pointer to the error counter to track the number of errors.
  */
-void first_pass(FILE* file, LinkedList** labels_ptr, LinkedList** entries_ptr, LinkedList** externs_ptr, uint8_t* errors, uint8_t* number_of_lines) {
+void first_pass(FILE* file, SymbolList** labels_ptr, SymbolList** entries_ptr, SymbolList** externs_ptr, uint8_t* errors, uint8_t* number_of_lines) {
     /* Line reading buffers */
     char buffer[BUFFER_SIZE];
 
     /* Initialize linked lists */
-    LinkedList* labels = *labels_ptr;
-    LinkedList* externs = *externs_ptr;
-    LinkedList* entries = *entries_ptr;
+    SymbolList* labels = *labels_ptr;
+    SymbolList* externs = *externs_ptr;
+    SymbolList* entries = *entries_ptr;
 
     uint8_t line = START_LINE - 1; /* Line reading starts one line before the START_LINE */
 
@@ -132,9 +132,9 @@ void first_pass(FILE* file, LinkedList** labels_ptr, LinkedList** entries_ptr, L
     }
 
     /* Resolve .entry labels to their corresponding line numbers */
-    LinkedList* curr = entries;
+    SymbolList* curr = entries;
     while (curr != NULL) {
-        LinkedList* label = get_node_by_label(labels, curr->label); /* Search for the label */
+        SymbolList* label = get_node_by_label(labels, curr->label); /* Search for the label */
         if (label != NULL) {
             curr->value.number = label->value.number; /* Assign the label's line number to the entry */
         }

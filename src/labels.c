@@ -15,8 +15,8 @@
  * @param label The label name to add.
  * @param number The numeric value to associate with the label.
  */
-void add_label_number(LinkedList **head, const char *label, uint8_t number) {
-    LinkedList *new_node = (LinkedList *)malloc(sizeof(LinkedList));
+void add_label_number(SymbolList **head, const char *label, uint8_t number) {
+    SymbolList *new_node = (SymbolList *)malloc(sizeof(SymbolList));
     if (!new_node) {
         perror("Failed to allocate memory");
         exit(EXIT_FAILURE);
@@ -47,8 +47,8 @@ void add_label_number(LinkedList **head, const char *label, uint8_t number) {
  * @param label The label name to add.
  * @param buffer The string value to associate with the label.
  */
-void add_label_string(LinkedList **head, const char *label, const char *buffer) {
-    LinkedList *new_node = (LinkedList *)malloc(sizeof(LinkedList));
+void add_label_string(SymbolList **head, const char *label, const char *buffer) {
+    SymbolList *new_node = (SymbolList *)malloc(sizeof(SymbolList));
     if (!new_node) {
         perror("Failed to allocate memory");
         exit(EXIT_FAILURE);
@@ -85,12 +85,12 @@ void add_label_string(LinkedList **head, const char *label, const char *buffer) 
  * @param label The label name to search for.
  * @return Pointer to the node containing the label, or NULL if not found.
  */
-LinkedList* get_node_by_label(LinkedList *head, const char *label) {
+SymbolList* get_node_by_label(SymbolList *head, const char *label) {
     if (head == NULL || label == NULL) {
         return NULL;
     }
     
-    LinkedList *curr = head;
+    SymbolList *curr = head;
     while (curr != NULL) {
         if (curr->label != NULL && !strcmp(curr->label, label)) {
             return curr;
@@ -111,12 +111,12 @@ LinkedList* get_node_by_label(LinkedList *head, const char *label) {
  * @param label The label name to search for.
  * @return true if the label exists, false otherwise.
  */
-bool is_label_in_list(LinkedList *head, const char *label) {
+bool is_label_in_list(SymbolList *head, const char *label) {
     if (head == NULL || label == NULL) {
         return false;
     }
     
-    LinkedList *curr = head;
+    SymbolList *curr = head;
     while (curr != NULL) {
         if (curr->label != NULL && !strcmp(curr->label, label)) {
             return true;
@@ -135,13 +135,13 @@ bool is_label_in_list(LinkedList *head, const char *label) {
  * 
  * @param head Pointer to the head of the linked list.
  */
-void print_labels(LinkedList *head) {
+void print_labels(SymbolList *head) {
     if (head == NULL) {
         printf("Label list is empty.\n");
         return;
     }
 
-    LinkedList *curr = head;
+    SymbolList *curr = head;
     while (curr != NULL) {
         if (curr->type == NUMBER_VALUE) {
             printf("Label: %s, Number: %u\n", curr->label, curr->value.number);
@@ -160,10 +160,10 @@ void print_labels(LinkedList *head) {
  * 
  * @param head Pointer to the head of the linked list.
  */
-void free_label_list(LinkedList *head) {
-    LinkedList *curr = head;
+void free_label_list(SymbolList *head) {
+    SymbolList *curr = head;
     while (curr != NULL) {
-        LinkedList *temp = curr;
+        SymbolList *temp = curr;
         curr = curr->next;
 
         free(temp->label);

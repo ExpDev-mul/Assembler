@@ -1,3 +1,16 @@
+/**
+ * @file errors.h
+ * @brief Header file for error handling in the assembler.
+ * 
+ * This file defines error codes and functions for reporting and managing errors
+ * encountered during the assembly process. It ensures consistent error reporting
+ * and provides utilities for tracking error occurrences.
+ * 
+ * Key Features:
+ * - Defines a comprehensive list of error codes for various assembler errors.
+ * - Provides functions to report errors with or without line numbers.
+ * - Tracks the number of errors encountered during the assembly process.
+ */
 #ifndef ERRORS_H
 #define ERRORS_H
 

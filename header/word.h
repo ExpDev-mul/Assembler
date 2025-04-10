@@ -1,3 +1,20 @@
+/**
+ * @file word.h
+ * @brief Header file for managing machine words in the assembler.
+ * 
+ * This file defines the `Word` structure and provides functions for creating,
+ * managing, and converting machine words. A machine word represents instructions
+ * or data in the assembler and includes fields for opcode, addressing modes,
+ * registers, function codes, and ARE bits.
+ * 
+ * Key Features:
+ * - Defines the `Word` structure for representing machine words.
+ * - Provides functions to:
+ *   - Create machine words with various parameters.
+ *   - Convert machine words to hexadecimal representation.
+ *   - Print machine words to output files.
+ *   - Free memory used by machine words.
+ */
 #ifndef WORD_H
 #define WORD_H
 

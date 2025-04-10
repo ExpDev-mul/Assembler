@@ -21,9 +21,9 @@ void assemble(FILE* file, FILE* am, char* base_name) {
     int i;                          /* Loop variable */
     char buffer[BUFFER_SIZE];       /* Buffer for reading lines */
     uint8_t line = START_LINE;      /* Current line number */
-    LinkedList *labels = NULL;      /* Linked list for labels */
-    LinkedList *entries = NULL;     /* Linked list for entry labels */
-    LinkedList *externs = NULL;     /* Linked list for extern labels */
+    SymbolList *labels = NULL;      /* Linked list for labels */
+    SymbolList *entries = NULL;     /* Linked list for entry labels */
+    SymbolList *externs = NULL;     /* Linked list for extern labels */
     WordList *inst_list = NULL;     /* Linked list for instruction instructions */
     WordList *data_list = NULL;     /* Linked list for data instructions */
     FILE *preprocessed = am;        /* Temporary file for preprocessed content */
@@ -32,10 +32,10 @@ void assemble(FILE* file, FILE* am, char* base_name) {
     uint8_t dc = 0;                 /* Data counter */
     bool is_command = false;        /* Flag to indicate if a valid command is found */
     bool stay_in_line = false;      /* Flag to indicate if we should stay on the same line */
-    FILE* ob;
-    FILE* ent;
-    FILE* ext;
-    char path[256];
+    FILE* ob;                       /* .ob file, to write down on */
+    FILE* ent;                      /* .ent file, to write down on */
+    FILE* ext;                      /* .ext file, to write down on */
+    char path[256];                 /* Path buffer for output files */
 
     /* Step 1: Preprocessing */
     preprocess(file, preprocessed); /* Expand macros and preprocess the input file */
@@ -137,7 +137,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
         * allocated memory for the labels list, and appends the instruction and data counters (IC and DC)
         * to the beginning of the object file.
         */
-        LinkedList *curr; /* LinkedList iterator variable */
+        SymbolList *curr; /* SymbolList iterator variable */
 
         /* Write entry labels to the .ent file, in case they are non-empty */
         if (entries != NULL){ /* Check if entries list is non-empty */

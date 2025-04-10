@@ -159,7 +159,7 @@ int8_t extract_number(char *arg) {
  * @return A pointer to a `Word` structure representing the extra instruction, or NULL if no extra instruction is needed.
  */
 Word* process_operand(int8_t mode, char *arg, 
-                        LinkedList *labels, LinkedList *externs, 
+                        SymbolList *labels, SymbolList *externs, 
                         uint8_t line, uint8_t memory_line, 
                         uint8_t *errors, uint8_t offset, 
                         uint8_t* flag_relative_address) {
@@ -177,7 +177,7 @@ Word* process_operand(int8_t mode, char *arg,
 
         case DIRECT_ADRS: {
             /* Direct addressing requires an extra word */
-            LinkedList *ptr = get_node_by_label(labels, arg);
+            SymbolList *ptr = get_node_by_label(labels, arg);
             if (ptr != NULL) {
                 *flag_relative_address = memory_line;
             } else {
@@ -194,7 +194,7 @@ Word* process_operand(int8_t mode, char *arg,
         case RELATIVE_ADRS: {
             /* Relative addressing requires an extra word */
             arg++; /* Skip the '&' character */
-            LinkedList *ptr = get_node_by_label(labels, arg);
+            SymbolList *ptr = get_node_by_label(labels, arg);
             if (ptr != NULL) {
                 extra_instruction = create_word_from_number(ptr->value.number - line, 1, 0, 0);
             } else {
@@ -218,12 +218,12 @@ Word* process_operand(int8_t mode, char *arg,
 }
 
 Command commands[]; /* Declare variable prototype, imported from opcode.h */
-void second_pass(FILE *preprocessed, LinkedList **labels_ptr, LinkedList **entries_ptr, LinkedList **externs_ptr, WordList **inst_list_ptr, WordList **data_list_ptr, uint8_t *ic, uint8_t *dc, uint8_t *errors, uint8_t number_of_lines, uint8_t *offsets_map) {
+void second_pass(FILE *preprocessed, SymbolList **labels_ptr, SymbolList **entries_ptr, SymbolList **externs_ptr, WordList **inst_list_ptr, WordList **data_list_ptr, uint8_t *ic, uint8_t *dc, uint8_t *errors, uint8_t number_of_lines, uint8_t *offsets_map) {
     /* Dereference pointers into variables with the same names as in the original code */
     int i; /* Loop variable */
-    LinkedList *labels = *labels_ptr;
-    LinkedList *entries = *entries_ptr;
-    LinkedList *externs = *externs_ptr;
+    SymbolList *labels = *labels_ptr;
+    SymbolList *entries = *entries_ptr;
+    SymbolList *externs = *externs_ptr;
     WordList *inst_list = *inst_list_ptr;
     WordList *data_list = *data_list_ptr;
     char buffer[BUFFER_SIZE];

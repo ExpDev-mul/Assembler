@@ -63,8 +63,8 @@ void reverse_list(WordList **head);
  * @param dc Pointer to the data counter.
  * @param errors Pointer to the error counter.
  */
-void second_pass(FILE *preprocessed, LinkedList **labels, 
-                    LinkedList **entries, LinkedList **externs, 
+void second_pass(FILE *preprocessed, SymbolList **labels, 
+                    SymbolList **entries, SymbolList **externs, 
                     WordList **inst_list, WordList **data_list, 
                     uint8_t *ic, uint8_t *dc, 
                     uint8_t *errors, uint8_t number_of_lines,

@@ -1,3 +1,16 @@
+/**
+ * @file opcode.h
+ * @brief Header file for defining assembler commands and their metadata.
+ * 
+ * This file defines the `Command` structure and provides an array of supported
+ * commands in the assembler. Each command includes its name, opcode, function code,
+ * number of operands, and allowed addressing modes for source and destination operands.
+ * 
+ * Key Features:
+ * - Defines the `Command` structure for representing assembler commands.
+ * - Provides an array of supported commands (`commands[]`) with their metadata.
+ * - Specifies allowed addressing modes for each command's operands.
+ */
 #ifndef OPCODE_H
 #define OPCODE_H
 

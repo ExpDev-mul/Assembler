@@ -1,3 +1,17 @@
+/**
+ * @file lib.h
+ * @brief Header file for utility functions and common definitions.
+ * 
+ * This file provides general-purpose utility functions and type definitions
+ * that are used throughout the assembler. It includes functions for string
+ * manipulation and other common operations to simplify the implementation.
+ * 
+ * Key Features:
+ * - Defines a `bool` type for better readability and compatibility.
+ * - Provides utility functions for:
+ *   - Skipping leading spaces in strings.
+ *   - Duplicating strings with dynamic memory allocation.
+ */
 #ifndef LIB_H
 #define LIB_H
 
