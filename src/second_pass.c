@@ -220,7 +220,6 @@ Word* process_operand(int8_t mode, char *arg,
     return extra_instruction;
 }
 
-Command commands[]; /* Declare variable prototype, imported from opcode.h */
 void second_pass(FILE *preprocessed, SymbolList **labels_ptr, 
                 SymbolList **entries_ptr, SymbolList **externs_ptr, 
                 WordList **inst_list_ptr, WordList **data_list_ptr, 
@@ -361,7 +360,7 @@ void second_pass(FILE *preprocessed, SymbolList **labels_ptr,
         /* printf("%s %s %s\n", command, arg1, arg2); */
 
         /* Loop through commands table to match the command */
-        for (i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
+        for (i = 0; i < NUM_COMMANDS; i++) {
             Command cmd = commands[i]; /* Store the command metadata */
 
             /* Check whether the command and the read command match with their names */

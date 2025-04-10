@@ -24,7 +24,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
     SymbolList *externs = NULL;     /* Linked list for extern labels */
     WordList *inst_list = NULL;     /* Linked list for instruction instructions */
     WordList *data_list = NULL;     /* Linked list for data instructions */
-    FILE *preprocessed = am;        /* Temporary file for preprocessed content */
+    FILE *preprocessed = am;        /* Preprocessed is equivalent to 'after macro' in this context */
     uint8_t errors = 0;             /* Counter for errors during runtime */
     uint8_t ic = 0;                 /* Instruction counter */
     uint8_t dc = 0;                 /* Data counter */
@@ -45,8 +45,11 @@ void assemble(FILE* file, FILE* am, char* base_name) {
     /* Step 2: First Pass */
     rewind(preprocessed);
 
-    number_of_lines = 0;
-    first_pass(preprocessed, &labels, &entries, &externs, &errors, &number_of_lines); /* Extract labels and validate syntax */
+    number_of_lines = 0; /* Initialize number of lines counter */
+    first_pass(preprocessed, &labels, 
+                &entries, &externs, 
+                &errors, &number_of_lines); /* Extract labels and validate syntax, while counting the number of lines and updating number_of_lines */
+
     /* Check for errors after the first pass */
     if (errors > 0) {
         fprintf(stderr, "Errors found in the first pass. Exiting...\n");
@@ -54,14 +57,19 @@ void assemble(FILE* file, FILE* am, char* base_name) {
     }
 
     /* Step 3: Second Pass */
-    offsets_map = calloc(number_of_lines, sizeof(uint8_t));
+    offsets_map = calloc(number_of_lines, sizeof(uint8_t)); /* Allocate memory for offsets map, with respect to the number_of_lines */
     if (!offsets_map) {
+        /* If offsets_map was not properly allocated, exit program */
         fprintf(stderr, "Failed to allocate memory for offsets_map\n");
-        goto cleanup;
+        goto cleanup; /* Perform cleanup on such errors */
     }
 
-    rewind(preprocessed);
-    second_pass(preprocessed, &labels, &entries, &externs, &inst_list, &data_list, &ic, &dc, &errors, number_of_lines, offsets_map);
+    rewind(preprocessed); /* Rewind the preprocessed file (also the after macro!) to be read again by second_pass */
+    second_pass(preprocessed, &labels, 
+                &entries, &externs, 
+                &inst_list, &data_list, 
+                &ic, &dc, &errors, 
+                number_of_lines, offsets_map); /* Perform second pass */
 
     /*
     for (i = 0; i < number_of_lines; i++) {
@@ -71,11 +79,11 @@ void assemble(FILE* file, FILE* am, char* base_name) {
 
     /* Only if no errors occured, create output files */
     if (errors == 0){
-        snprintf(path, sizeof(path), "./outputs/%s.ob", base_name);
-        ob = fopen(path, "w+");
+        snprintf(path, sizeof(path), "./outputs/%s.ob", base_name); /* Set the proper path */
+        ob = fopen(path, "w+"); /* Open the path with writing+ perms */
         if (!ob) {
             fprintf(stderr, "Error opening .ob file for writing: %s\n", path);
-            goto cleanup;
+            goto cleanup; /* Perform cleanup */
         }
 
         /* Write the instruction counter (IC) and data counter (DC) to the object file, dynamically */
@@ -86,56 +94,83 @@ void assemble(FILE* file, FILE* am, char* base_name) {
         /* Print out instructions (which come before data) */
         reverse_list(&inst_list); /* Reverse the data list for correct order */
         curr_wl = inst_list; /* Pointer to traverse the data list */
+
+
+
+        
+        
+        /* Traverse the instruction list and process each node */
         while (curr_wl != NULL) {
-            if (curr_wl->is_line){
-                int index = curr_wl->data.line;
-                if (index >= 0 && index < number_of_lines){
+            /* Check if the current node represents a line (not a word) */
+            if (curr_wl->is_line) {
+                int index = curr_wl->data.line; /* Retrieve the line index */
+                
+                /* Ensure the line index is within valid bounds */
+                if (index >= 0 && index < number_of_lines) {
+                    /* Create a word from the line data, adjusted by the offset and START_LINE */
                     Word* inst = create_word_from_number(
                         curr_wl->data.line + offsets_map[index] + START_LINE, 0, 1, 0
                     );
 
+                    /* Print the word in hexadecimal format to the .ob file */
                     print_word_hex(inst, &line, ob);
                 }
             } else if (curr_wl->data.word != NULL) {
-                print_word_hex(curr_wl->data.word, &line, ob); /* Output the data instruction to .ob file */
+                print_word_hex(curr_wl->data.word, &line, ob); /* Output the data instruction to the .ob file */
             }
 
+            /* Store the current node in a temporary pointer for cleanup */
             WordList* curr_wl_nptr = curr_wl;
-            curr_wl = curr_wl->next; /* Move to the next data instruction */
 
-            if (!curr_wl_nptr->is_line && curr_wl_nptr->data.word != NULL){
-                free_word(curr_wl_nptr->data.word); /* Free the word */
+            /* Move to the next node in the linked list */
+            curr_wl = curr_wl->next;
+
+            /* Free the word in the current node if it is not a line and contains a word */
+            if (!curr_wl_nptr->is_line && curr_wl_nptr->data.word != NULL) {
+                free_word(curr_wl_nptr->data.word); /* Free the dynamically allocated word */
             }
 
-            free(curr_wl_nptr); /* Free linked list from memory */
+            /* Free the memory allocated for the current node */
+            free(curr_wl_nptr);
         }
 
         /* Print out directives (which come after instructions) */
         reverse_list(&data_list); /* Reverse the data list for correct order */
         curr_wl = data_list; /* Pointer to traverse the data list */
+        
+        /* Traverse the instruction list and process each node */
         while (curr_wl != NULL) {
-            if (curr_wl->is_line){
-                int index = curr_wl->data.line;
-                if (index >= 0 && index < number_of_lines){
+            /* Check if the current node represents a line (not a word) */
+            if (curr_wl->is_line) {
+                int index = curr_wl->data.line; /* Retrieve the line index */
+                
+                /* Ensure the line index is within valid bounds */
+                if (index >= 0 && index < number_of_lines) {
+                    /* Create a word from the line data, adjusted by the offset and START_LINE */
                     Word* inst = create_word_from_number(
                         curr_wl->data.line + offsets_map[index] + START_LINE, 0, 1, 0
                     );
 
+                    /* Print the word in hexadecimal format to the .ob file */
                     print_word_hex(inst, &line, ob);
-                    free_word(inst);
                 }
             } else if (curr_wl->data.word != NULL) {
-                print_word_hex(curr_wl->data.word, &line, ob); /* Output the data instruction to .ob file */
+                print_word_hex(curr_wl->data.word, &line, ob); /* Output the data instruction to the .ob file */
             }
 
-            curr_wl_nptr = curr_wl;
-            curr_wl = curr_wl->next; /* Move to the next data instruction */
+            /* Store the current node in a temporary pointer for cleanup */
+            WordList* curr_wl_nptr = curr_wl;
 
-            if (!curr_wl_nptr->is_line && curr_wl_nptr->data.word != NULL){
-                free_word(curr_wl_nptr->data.word); /* Free the word */
+            /* Move to the next node in the linked list */
+            curr_wl = curr_wl->next;
+
+            /* Free the word in the current node if it is not a line and contains a word */
+            if (!curr_wl_nptr->is_line && curr_wl_nptr->data.word != NULL) {
+                free_word(curr_wl_nptr->data.word); /* Free the dynamically allocated word */
             }
 
-            free(curr_wl_nptr); /* Free linked list from memory */
+            /* Free the memory allocated for the current node */
+            free(curr_wl_nptr);
         }
 
         /**
@@ -147,7 +182,13 @@ void assemble(FILE* file, FILE* am, char* base_name) {
         */
         SymbolList *curr; /* SymbolList iterator variable */
 
+
+
+        /*
         print_labels(entries);
+        */
+
+
 
         /* Write entry labels to the .ent file, in case they are non-empty */
         if (entries != NULL){ /* Check if entries list is non-empty */

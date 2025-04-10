@@ -20,7 +20,7 @@
 
 /* General Constants */
 #define BUFFER_SIZE 81               /* Buffer size for reading lines from input files */
-#define MACRO_SIZE (BUFFER_SIZE * 5) /* Maximum size allowed for macro contents */
+#define MACRO_SIZE (BUFFER_SIZE * 7) /* Maximum size allowed for macro contents */
 #define NUM_REGISTERS 8              /* Number of registers available in the assembler (e.g., r0 to r7) */
 #define START_LINE 100               /* Starting line number for the memory image (.ob file) */
 

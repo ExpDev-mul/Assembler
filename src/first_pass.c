@@ -183,7 +183,7 @@ void first_pass(FILE* file, SymbolList** labels_ptr,
             curr->value.number = START_LINE + label->value.number; /* Assign the label's line number to the entry */
         }
 
-        curr = curr->next;
+        curr = curr->next; /* Move to next node */
     }
 
     /* Update the pointers to the linked lists */
