@@ -20,16 +20,37 @@
  * @param externs_ptr Pointer to the linked list of extern labels.
  * @param errors Pointer to the error counter to track the number of errors.
  */
-void first_pass(FILE* file, SymbolList** labels_ptr, SymbolList** entries_ptr, SymbolList** externs_ptr, uint8_t* errors, uint8_t* number_of_lines) {
+void first_pass(FILE* file, SymbolList** labels_ptr, 
+                SymbolList** entries_ptr, SymbolList** externs_ptr, 
+                uint8_t* errors, uint8_t* number_of_lines) {
+    if (file == NULL) {
+        fprintf(stderr, "Error: Input file pointer is NULL.\n");
+        return;
+    }
+    if (labels_ptr == NULL || entries_ptr == NULL || externs_ptr == NULL) {
+        fprintf(stderr, "Error: One or more SymbolList pointers are NULL.\n");
+        return;
+    }
+    if (errors == NULL) {
+        fprintf(stderr, "Error: Error counter pointer is NULL.\n");
+        return;
+    }
+    if (number_of_lines == NULL) {
+        fprintf(stderr, "Error: Number of lines pointer is NULL.\n");
+        return;
+    }
+    
     /* Line reading buffers */
     char buffer[BUFFER_SIZE];
 
     /* Initialize linked lists */
-    SymbolList* labels = *labels_ptr;
+    SymbolList* labels = *labels_ptr; 
     SymbolList* externs = *externs_ptr;
     SymbolList* entries = *entries_ptr;
-
     uint8_t line = START_LINE - 1; /* Line reading starts one line before the START_LINE */
+    char *prefix; /* Pointer to the first token in the line */
+    char *pos;    /* Pointer to the position of ':' in the label */
+    char *arg;    /* Pointer to the argument after the command */
 
     while (1) {
         /* Read a line from the file */
@@ -41,13 +62,12 @@ void first_pass(FILE* file, SymbolList** labels_ptr, SymbolList** entries_ptr, S
         /* Remove the newline character from the end of the string */
         buffer[strcspn(buffer, "\n")] = '\0';
 
-        char *prefix = strtok(buffer, " "); /* Extract the first token as the command */
-        skip_leading_spaces(&prefix); /* Skip leading spaces */
-
+        prefix = strtok(buffer, " "); /* Extract the first token as the command */
         if (prefix == NULL) {
             continue; /* Skip empty lines */
         }
 
+        skip_leading_spaces(&prefix); /* Skip leading spaces */
         line++; /* Advance to the next line */
 
         if (prefix[0] == ';') {
@@ -57,7 +77,13 @@ void first_pass(FILE* file, SymbolList** labels_ptr, SymbolList** entries_ptr, S
 
         if (prefix[strlen(prefix) - 1] == ':') {
             /* Handle label declarations */
-            char *pos = strchr(prefix, ':');
+            pos = strchr(prefix, ':');
+            if (pos == NULL) {
+                /* Check for missing ':' in label declaration */
+                error_with_code(INVALID_LABEL_FORMAT, line, errors);
+                continue;
+            }
+            
             *pos = '\0'; /* Remove the ':' at the end */
 
             if (strlen(prefix) == 0) {
@@ -84,15 +110,14 @@ void first_pass(FILE* file, SymbolList** labels_ptr, SymbolList** entries_ptr, S
 
         if (!strcmp(prefix, ".extern")) {
             /* Handle .extern declarations */
-            char *arg = strtok(NULL, " ");
-            skip_leading_spaces(&arg);
-
+            arg = strtok(NULL, " ");
             if (arg == NULL) {
                 /* Check for missing argument */
                 error_with_code(EXTERN_MISSING_ARGUMENT, line, errors);
                 continue;
             }
 
+            skip_leading_spaces(&arg);
             if (is_label_in_list(labels, arg)) {
                 /* Check for conflicting entry and extern labels */
                 error_with_code(CONFLICTING_ENTRY_AND_EXTERN, line, errors);

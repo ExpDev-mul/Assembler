@@ -18,8 +18,6 @@ uint8_t errors; /* Prototype for errors counter, accessed widely through this fi
 
 void assemble(FILE* file, FILE* am, char* base_name) {
     /* Variable declarations */
-    int i;                          /* Loop variable */
-    char buffer[BUFFER_SIZE];       /* Buffer for reading lines */
     uint8_t line = START_LINE;      /* Current line number */
     SymbolList *labels = NULL;      /* Linked list for labels */
     SymbolList *entries = NULL;     /* Linked list for entry labels */
@@ -30,12 +28,26 @@ void assemble(FILE* file, FILE* am, char* base_name) {
     uint8_t errors = 0;             /* Counter for errors during runtime */
     uint8_t ic = 0;                 /* Instruction counter */
     uint8_t dc = 0;                 /* Data counter */
-    bool is_command = false;        /* Flag to indicate if a valid command is found */
-    bool stay_in_line = false;      /* Flag to indicate if we should stay on the same line */
     FILE* ob;                       /* .ob file, to write down on */
     FILE* ent;                      /* .ent file, to write down on */
     FILE* ext;                      /* .ext file, to write down on */
     char path[256];                 /* Path buffer for output files */
+    uint8_t *offsets_map;           /* Array to store offsets for each line */
+    uint8_t number_of_lines;        /* Number of lines in the preprocessed file */
+    int ic_length;                  /* Length of the instruction counter (IC) */
+    int padding;                    /* Computed padding for IC and DC display */
+    WordList *curr_wl;              /* Pointer to traverse the data list */
+    WordList* curr_wl_nptr;         /* Temporary pointer */
+
+    /* Cleanup wrapper, to avoid memory leaks */
+    cleanup:
+        if(offsets_map) free(offsets_map);
+        if(labels) free_label_list(labels);
+        if(preprocessed) fclose(preprocessed);
+        if(ob) fclose(ob);
+        if(ent) fclose(ent);
+        if(ext) fclose(ext);
+        return;
 
     /* Step 1: Preprocessing */
     preprocess(file, preprocessed); /* Expand macros and preprocess the input file */
@@ -43,21 +55,19 @@ void assemble(FILE* file, FILE* am, char* base_name) {
     /* Step 2: First Pass */
     rewind(preprocessed);
 
-    uint8_t number_of_lines = 0;
+    number_of_lines = 0;
     first_pass(preprocessed, &labels, &entries, &externs, &errors, &number_of_lines); /* Extract labels and validate syntax */
     /* Check for errors after the first pass */
     if (errors > 0) {
         fprintf(stderr, "Errors found in the first pass. Exiting...\n");
-        fclose(preprocessed);
-        fclose(am);
-        return;
+        goto cleanup;
     }
 
     /* Step 3: Second Pass */
-    uint8_t *offsets_map = calloc(number_of_lines, sizeof(uint8_t));
+    offsets_map = calloc(number_of_lines, sizeof(uint8_t));
     if (!offsets_map) {
         fprintf(stderr, "Failed to allocate memory for offsets_map\n");
-        return;
+        goto cleanup;
     }
 
     rewind(preprocessed);
@@ -75,21 +85,20 @@ void assemble(FILE* file, FILE* am, char* base_name) {
         ob = fopen(path, "w+");
         if (!ob) {
             fprintf(stderr, "Error opening .ob file for writing: %s\n", path);
-            fclose(file);
-            return;
+            goto cleanup;
         }
 
         /* Write the instruction counter (IC) and data counter (DC) to the object file, dynamically */
-        int ic_length = snprintf(NULL, 0, "%d", ic); /* Compute length for ic */
-        int padding = 9 - ic_length; /* Formula for padding that matches our scenario */
+        ic_length = snprintf(NULL, 0, "%d", ic); /* Compute length for ic */
+        padding = 9 - ic_length; /* Formula for padding that matches our scenario */
         fprintf(ob, "%*d %d\n", padding, ic, dc); /* Aligns IC and DC with an 8-character gap */
 
         /* Print out instructions (which come before data) */
         reverse_list(&inst_list); /* Reverse the data list for correct order */
-        WordList *curr_wl = inst_list; /* Pointer to traverse the data list */
+        curr_wl = inst_list; /* Pointer to traverse the data list */
         while (curr_wl != NULL) {
             if (curr_wl->is_line){
-                uint8_t index = curr_wl->data.line - START_LINE - 1;
+                int index = curr_wl->data.line - START_LINE - 1;
                 if (index >= 0 && index < number_of_lines){
                     Word* inst = create_word_from_number(
                         curr_wl->data.line + offsets_map[index], 0, 1, 0
@@ -112,7 +121,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
         curr_wl = data_list; /* Pointer to traverse the data list */
         while (curr_wl != NULL) {
             if (curr_wl->is_line){
-                uint8_t index = curr_wl->data.line - START_LINE - 1;
+                int index = curr_wl->data.line - START_LINE - 1;
                 if (index >= 0 && index < number_of_lines){
                     Word* inst = create_word_from_number(
                         curr_wl->data.line + offsets_map[index], 0, 1, 0
@@ -125,7 +134,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
                 print_word_hex(curr_wl->data.word, &line, ob); /* Output the data instruction to .ob file */
             }
 
-            WordList* curr_wl_nptr = curr_wl;
+            curr_wl_nptr = curr_wl;
             curr_wl = curr_wl->next; /* Move to the next data instruction */
             free(curr_wl_nptr); /* Free linked list from memory */
         }
@@ -145,8 +154,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
             ent = fopen(path, "w+");
             if (!ent) {
                 fprintf(stderr, "Error opening .ent file for writing: %s\n", path);
-                fclose(file);
-                return;
+                goto cleanup;
             }
 
             curr = entries; /* Pointer to traverse the entries linked list */
@@ -164,9 +172,8 @@ void assemble(FILE* file, FILE* am, char* base_name) {
             snprintf(path, sizeof(path), "./outputs/%s.ext", base_name);
             ext = fopen(path, "w+");
             if (!ext) {
-                fprintf(stderr, "Error opening .ext file for writing: %s\n", ext);
-                fclose(file);
-                return;
+                fprintf("Error opening .ext file for writing: %s\n", ext);
+                goto cleanup;
             }
 
             curr = externs; /* Reuse the pointer to traverse the externs linked list */
@@ -181,6 +188,5 @@ void assemble(FILE* file, FILE* am, char* base_name) {
     }
 
     /* Free the memory allocated for the labels linked list */
-    free_label_list(labels);
-    free(offsets_map);
+    goto cleanup;
 }

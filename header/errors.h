@@ -50,7 +50,7 @@ enum {
     EXTERN_NOT_UNIQUE,              /* Extern label is not unique */
     LABEL_NOT_UNIQUE,               /* Label is not unique */
     CONFLICTING_ENTRY_AND_EXTERN,   /* Extern and entry cannot have the same name */
-    MACRO_ALREADY_DEFINED,          /* Macro with that name already exists */
+    MACRO_ALREADY_DEFINED          /* Macro with that name already exists */
 };
 
 /**

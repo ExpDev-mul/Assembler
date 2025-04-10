@@ -24,6 +24,7 @@ int process_file(const char *input_file) {
     }
 
     /* Extract the base name of the input file (without path and extension) */
+
     const char *base_name = strrchr(input_file, '/');
     base_name = (base_name) ? base_name + 1 : input_file;
 
@@ -32,14 +33,20 @@ int process_file(const char *input_file) {
     base_name_copy[sizeof(base_name_copy) - 1] = '\0';
 
     char *base_name_end = strchr(base_name_copy, '.');
-    if (base_name_end) {
+    if (base_name_end != NULL) {
         *base_name_end = '\0';
     }
 
     /* Create output directory path and file paths */
     char path[256];
 
-    snprintf(path, sizeof(path), "./outputs/%s.am", base_name_copy);
+    int res = snprintf(path, sizeof(path), "./outputs/%s.am", base_name_copy);
+    if (res < 0 || res >= sizeof(path)) {
+        fprintf(stderr, "Error creating .am file path\n");
+        fclose(file);
+        return EXIT_FAILURE;
+    }
+
     FILE *am = fopen(path, "w+");
     if (!am) {
         fprintf(stderr, "Error opening .am file for writing: %s\n", path);
