@@ -153,17 +153,14 @@ int8_t extract_number(char *arg) {
  * @param line The current line number being processed in the source file.
  * @param memory_line The current memory line number in the instruction list.
  * @param errors A pointer to the error counter, incremented if an error occurs.
- * @param offset The offset from the current line to the memory image line.
- * @param flag_relative_address A pointer to a flag that indicates if the operand is a relative address.
  * 
  * @return A pointer to a `Word` structure representing the extra instruction, or NULL if no extra instruction is needed.
  */
 Word* process_operand(int8_t mode, char *arg, 
                       SymbolList *labels, SymbolList **externs, 
                       uint8_t line, uint16_t memory_line, 
-                      uint8_t *errors, uint8_t offset, 
-                      uint8_t* flag_relative_address) {
-    Word *extra_instruction = NULL; /* Pointer to the extra instruction */
+                      uint8_t *errors) {
+    Word *extra_instruction = NULL;
 
     switch (mode) {
         case IMMEDIATE_ADRS:
@@ -176,16 +173,18 @@ Word* process_operand(int8_t mode, char *arg,
             break;
 
         case DIRECT_ADRS: {
-            /* Direct addressing requires an extra word */
+            /* Direct addressing creates a word with the label's memory address */
             SymbolList *ptr = get_node_by_label(labels, arg);
             if (ptr != NULL) {
-                *flag_relative_address = line;
+                /* Create word with the label's actual memory address */
+                extra_instruction = create_word_from_number(ptr->value.number, 1, 0, 0);
             } else {
                 SymbolList *externs_ptr = *externs;
                 ptr = get_node_by_label(externs_ptr, arg);
                 if (ptr != NULL) {
-                    *flag_relative_address = line;
-                    add_label_number(&externs_ptr, arg, memory_line); /* Modify the original externs list */
+                    /* For external labels, create word and update externs list */
+                    extra_instruction = create_word_from_number(0, 0, 0, 1); /* External word */
+                    add_label_number(&externs_ptr, arg, memory_line);
                     *externs = externs_ptr;
                 } else {
                     error_with_code(LABEL_NOT_FOUND, line, errors);
@@ -195,11 +194,15 @@ Word* process_operand(int8_t mode, char *arg,
         }
 
         case RELATIVE_ADRS: {
-            /* Relative addressing requires an extra word */
+            /* Relative addressing creates a word with the relative distance */
             arg++; /* Skip the '&' character */
             SymbolList *ptr = get_node_by_label(labels, arg);
             if (ptr != NULL) {
-                extra_instruction = create_word_from_number(ptr->value.number - line, 1, 0, 0);
+                int16_t target_address = ptr->value.number;
+                int16_t current_address = memory_line - 1;
+                int16_t relative_distance = target_address - current_address;
+                
+                extra_instruction = create_word_from_number(relative_distance, 1, 0, 0);
             } else {
                 error_with_code(LABEL_NOT_FOUND, line, errors);
             }
@@ -224,12 +227,14 @@ void second_pass(FILE *preprocessed, SymbolList **labels_ptr,
                 SymbolList **entries_ptr, SymbolList **externs_ptr, 
                 WordList **inst_list_ptr, WordList **data_list_ptr, 
                 uint8_t *ic, uint8_t *dc, uint8_t *errors, 
-                uint8_t number_of_lines, uint8_t *offsets_map) {
+                uint8_t number_of_lines) {
     /* Dereference pointers into variables with the same names as in the original code */
     int i; /* Loop variable */
+
     SymbolList *labels = *labels_ptr;
     SymbolList *entries = *entries_ptr;
     SymbolList *externs = *externs_ptr;
+
     WordList *inst_list = *inst_list_ptr;
     WordList *data_list = *data_list_ptr;
     char buffer[BUFFER_SIZE];
@@ -237,12 +242,12 @@ void second_pass(FILE *preprocessed, SymbolList **labels_ptr,
     uint16_t memory_line = START_LINE; /* Current memory line number */
     uint8_t line = 0; /* Actual reading line from the file */
     bool is_command = false;
-    uint8_t offset = 0; /* Define the offset from our current line to the memory image line */
     
     while (1){
         char *command; /* The first token separated by a comma is our actual command. */
         if (stay_in_line){
             command = strtok(NULL, " ");
+            stay_in_line = false;
         } else {
             if (fgets(buffer, BUFFER_SIZE, preprocessed) == NULL){
                 break; /* EOF has been reached, or an error has occured. */
@@ -250,22 +255,8 @@ void second_pass(FILE *preprocessed, SymbolList **labels_ptr,
             
             buffer[strcspn(buffer, "\n")] = '\0'; /* Remove newline character automatically inserted by fgets */
             command = strtok(buffer, " "); /* Tokenize the command (e.g, mov, add, stop) */
+            line++;
         }
-
-        if (line >= 0 && line < number_of_lines){
-            /* If we are within the range of lines */
-            offsets_map[line] = offset; /* Store our current line offset */
-        } else {
-            fprintf(stderr, "Error: Line index out of bounds (line: %d, number_of_lines: %d)\n", line, number_of_lines);
-            break; /* Exit the loop if line index is out of bounds */
-        }
-
-        if (!stay_in_line){
-            line++; /* Increment line number for the next iteration */
-        } else {
-            stay_in_line = false;
-        }
-
         
         if (command == NULL){
             /* If the command tokenized is null, it might mean this is an empty line, just skip it */
@@ -475,9 +466,6 @@ void second_pass(FILE *preprocessed, SymbolList **labels_ptr,
                     continue;
                 }
 
-                uint8_t flag_relative_address_one = 0;
-                uint8_t flag_relative_address_two = 0;
-
                 bool src_mode_defined = (src_mode != -1);
                 bool dest_mode_defined = (dest_mode != -1);
                 /* Return the modes back to 0 if they were -1 (which was temporary flagging for the absence of such operand!) */
@@ -504,18 +492,13 @@ void second_pass(FILE *preprocessed, SymbolList **labels_ptr,
                     arg = arg1; /* The source argument */
                     extra_instruction_one = process_operand(src_mode_defined ? src_mode : -1, arg, labels, 
                                                             &externs, line, memory_line, 
-                                                            errors, offset, &flag_relative_address_one);
+                                                            errors);
                 }
                 
                 if (extra_instruction_one != NULL){
                     /* If there is an extra instruction, we will output it to .ob file */
                     (*ic)++;
-                    offset++;
                     add_word(&inst_list, extra_instruction_one); /* Add the instruction to the instruction list */
-                    memory_line++;
-                } else if (flag_relative_address_one != 0) {
-                    offset++;
-                    add_line(&inst_list, flag_relative_address_one);
                     memory_line++;
                 }
 
@@ -524,16 +507,11 @@ void second_pass(FILE *preprocessed, SymbolList **labels_ptr,
                 arg = (cmd.operands_num == 2) ? arg2 : arg1; /* The destination argument */
                 extra_instruction_two = process_operand(dest_mode_defined ? dest_mode : -1, arg, labels, 
                                                         &externs, line, memory_line, 
-                                                        errors, offset, &flag_relative_address_two);
+                                                        errors);
                 if (extra_instruction_two != NULL){
                     /* If there is an extra instruction, we will output it to .ob file */
                     (*ic)++;
-                    offset++;
                     add_word(&inst_list, extra_instruction_two); /* Add the instruction to the instruction list */
-                    memory_line++;
-                } else if (flag_relative_address_two != 0) {
-                    offset++;
-                    add_line(&inst_list, flag_relative_address_two);
                     memory_line++;
                 }
 

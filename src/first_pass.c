@@ -6,6 +6,8 @@
 #include "../header/lib.h"
 #include "../header/first_pass.h"
 #include "../header/errors.h"
+#include "../header/validators.h"
+#include "../header/opcode.h"
 
 /**
  * @brief Performs the first pass of the assembler.
@@ -54,22 +56,27 @@ void first_pass(FILE* file, SymbolList** labels_ptr,
     char *arg;    /* Pointer to the argument after the command */
     SymbolList* label = NULL; /* Pointer to the label node in the linked list */
     SymbolList* curr = NULL; /* Pointer to the current node in the linked list */
-
+    int i; /* Loop variable */
+    uint16_t memory_address = START_LINE; /* Memory address for the instruction */
+    bool stay_in_line = false;
     while (1) {
         /* Read a line from the file */
-        if (fgets(buffer, BUFFER_SIZE, file) == NULL) {
-            break; /* EOF has been reached, or an error has occurred */
+        if (stay_in_line){
+            prefix = strtok(NULL, " ");
+            stay_in_line = false;
+        } else {
+            if (fgets(buffer, BUFFER_SIZE, file) == NULL){
+                break; /* EOF has been reached, or an error has occured. */
+            }
+            
+            buffer[strcspn(buffer, "\n")] = '\0'; /* Remove newline character automatically inserted by fgets */
+            prefix = strtok(buffer, " "); /* Tokenize the command (e.g, mov, add, stop) */
+            line++;
         }
+ 
 
         (*number_of_lines)++;
         /* Remove the newline character from the end of the string */
-        buffer[strcspn(buffer, "\n")] = '\0';
-
-        prefix = strtok(buffer, " "); /* Extract the first token as the command */
-        if (prefix == NULL) {
-            continue; /* Skip empty lines */
-        }
-
         skip_leading_spaces(&prefix); /* Skip leading spaces */
         line++; /* Advance to the next line */
 
@@ -80,13 +87,8 @@ void first_pass(FILE* file, SymbolList** labels_ptr,
 
         if (prefix[strlen(prefix) - 1] == ':') {
             /* Handle label declarations */
+            stay_in_line = true; /* Skip to the afterwards contents of the current line */
             pos = strchr(prefix, ':');
-            if (pos == NULL) {
-                /* Check for missing ':' in label declaration */
-                error_with_code(INVALID_LABEL_FORMAT, line, errors);
-                continue;
-            }
-            
             *pos = '\0'; /* Remove the ':' at the end */
 
             if (strlen(prefix) == 0) {
@@ -107,67 +109,97 @@ void first_pass(FILE* file, SymbolList** labels_ptr,
                 continue;
             }
 
-            add_label_number(&labels, prefix, line); /* Add the label to the linked list */
+            add_label_number(&labels, prefix, memory_address); /* Add the label to the linked list */
             continue;
         }
 
-        if (!strcmp(prefix, ".extern")) {
-            /* Handle .extern declarations */
-            arg = strtok(NULL, " ");
-            if (arg == NULL) {
-                /* Check for missing argument */
-                error_with_code(EXTERN_MISSING_ARGUMENT, line, errors);
+        if (prefix[0] == '.'){
+            if (!strcmp(prefix, ".extern")) {
+                /* Handle .extern declarations */
+                arg = strtok(NULL, " ");
+                if (arg == NULL) {
+                    /* Check for missing argument */
+                    error_with_code(EXTERN_MISSING_ARGUMENT, line, errors);
+                    continue;
+                }
+    
+                skip_leading_spaces(&arg);
+                if (is_label_in_list(labels, arg)) {
+                    /* Check for conflicting entry and extern labels */
+                    error_with_code(CONFLICTING_ENTRY_AND_EXTERN, line, errors);
+                    continue;
+                }
+    
+                if (is_label_in_list(externs, arg)) {
+                    /* Check if the label is already defined as an .extern */
+                    error_with_code(EXTERN_NOT_UNIQUE, line, errors);
+                    continue;
+                }
+    
+                if (is_label_in_list(entries, arg)) {
+                    /* Check for conflicting entry and extern labels */
+                    error_with_code(CONFLICTING_ENTRY_AND_EXTERN, line, errors);
+                    continue;
+                }
+    
+                add_label_number(&externs, arg, -1); /* Add the extern label to the list */
                 continue;
             }
-
-            skip_leading_spaces(&arg);
-            if (is_label_in_list(labels, arg)) {
-                /* Check for conflicting entry and extern labels */
-                error_with_code(CONFLICTING_ENTRY_AND_EXTERN, line, errors);
+    
+            if (!strcmp(prefix, ".entry")) {
+                /* Handle .entry declarations */
+                arg = strtok(NULL, " ");
+                skip_leading_spaces(&arg);
+    
+                if (arg == NULL) {
+                    /* Check for missing argument */
+                    error_with_code(ENTRY_MISSING_ARGUMENT, line, errors);
+                    continue;
+                }
+    
+                if (is_label_in_list(entries, arg)) {
+                    /* Check if the label is already defined as an .entry */
+                    error_with_code(ENTRY_ALREADY_DEFINED, line, errors);
+                    continue;
+                }
+    
+                if (is_label_in_list(externs, arg)) {
+                    /* Check for conflicting entry and extern labels */
+                    error_with_code(CONFLICTING_ENTRY_AND_EXTERN, line, errors);
+                    continue;
+                }
+    
+                add_label_number(&entries, arg, memory_address); /* Add the entry label to the list, shifted by 1 downward for 0 indexing */
                 continue;
             }
+        } else {
+            for (i = 0; i < NUM_COMMANDS; i++) {
+                if (!strcmp(prefix, commands[i].name)) {
+                    memory_address++;
 
-            if (is_label_in_list(externs, arg)) {
-                /* Check if the label is already defined as an .extern */
-                error_with_code(EXTERN_NOT_UNIQUE, line, errors);
-                continue;
+                    if (commands[i].operands_num > 0) {
+                        char *arg1 = strtok(NULL, ",");
+                        char *arg2 = commands[i].operands_num == 2 ? strtok(NULL, ",") : NULL;
+                        
+                        if (arg1) {
+                            skip_leading_spaces(&arg1);
+                            int8_t is_reg = is_valid_reg(arg1);
+                            if (!is_reg) {
+                                memory_address++;
+                            }
+                        }
+
+                        if (arg2) {
+                            skip_leading_spaces(&arg2);
+                            int8_t is_reg = is_valid_reg(arg2);
+                            if (!is_reg) {
+                                memory_address++;
+                            }
+                        }
+                    }
+                    break;
+                }
             }
-
-            if (is_label_in_list(entries, arg)) {
-                /* Check for conflicting entry and extern labels */
-                error_with_code(CONFLICTING_ENTRY_AND_EXTERN, line, errors);
-                continue;
-            }
-
-            add_label_number(&externs, arg, -1); /* Add the extern label to the list */
-            continue;
-        }
-
-        if (!strcmp(prefix, ".entry")) {
-            /* Handle .entry declarations */
-            arg = strtok(NULL, " ");
-            skip_leading_spaces(&arg);
-
-            if (arg == NULL) {
-                /* Check for missing argument */
-                error_with_code(ENTRY_MISSING_ARGUMENT, line, errors);
-                continue;
-            }
-
-            if (is_label_in_list(entries, arg)) {
-                /* Check if the label is already defined as an .entry */
-                error_with_code(ENTRY_ALREADY_DEFINED, line, errors);
-                continue;
-            }
-
-            if (is_label_in_list(externs, arg)) {
-                /* Check for conflicting entry and extern labels */
-                error_with_code(CONFLICTING_ENTRY_AND_EXTERN, line, errors);
-                continue;
-            }
-
-            add_label_number(&entries, arg, line - 1); /* Add the entry label to the list, shifted by 1 downward for 0 indexing */
-            continue;
         }
     }
 
@@ -180,11 +212,13 @@ void first_pass(FILE* file, SymbolList** labels_ptr,
         
         label = get_node_by_label(labels, curr->label); /* Search for the label */
         if (label != NULL) {
-            curr->value.number = START_LINE + label->value.number; /* Assign the label's line number to the entry */
+            curr->value.number = label->value.number; /* Assign the label's line number to the entry */
         }
 
         curr = curr->next; /* Move to next node */
     }
+
+    print_labels(labels); /* Print the labels for debugging */
 
     /* Update the pointers to the linked lists */
     *labels_ptr = labels;

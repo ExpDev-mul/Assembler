@@ -19,9 +19,12 @@ uint8_t errors; /* Prototype for errors counter, accessed widely through this fi
 void assemble(FILE* file, FILE* am, char* base_name) {
     /* Variable declarations */
     uint8_t line = START_LINE;      /* Current line number */
+
+    /* Note: Our symbols are not a single table but rather split across multiple lists for every symbol decoding possible */
     SymbolList *labels = NULL;      /* Linked list for labels */
     SymbolList *entries = NULL;     /* Linked list for entry labels */
     SymbolList *externs = NULL;     /* Linked list for extern labels */
+
     WordList *inst_list = NULL;     /* Linked list for instruction instructions */
     WordList *data_list = NULL;     /* Linked list for data instructions */
     FILE *preprocessed = am;        /* Preprocessed is equivalent to 'after macro' in this context */
@@ -32,7 +35,6 @@ void assemble(FILE* file, FILE* am, char* base_name) {
     FILE* ent = NULL;                      /* .ent file, to write down on */
     FILE* ext = NULL;                      /* .ext file, to write down on */
     char path[256];                 /* Path buffer for output files */
-    uint8_t *offsets_map;           /* Array to store offsets for each line */
     uint8_t number_of_lines;        /* Number of lines in the preprocessed file */
     int ic_length;                  /* Length of the instruction counter (IC) */
     int padding;                    /* Computed padding for IC and DC display */
@@ -57,25 +59,12 @@ void assemble(FILE* file, FILE* am, char* base_name) {
     }
 
     /* Step 3: Second Pass */
-    offsets_map = calloc(number_of_lines, sizeof(uint8_t)); /* Allocate memory for offsets map, with respect to the number_of_lines */
-    if (!offsets_map) {
-        /* If offsets_map was not properly allocated, exit program */
-        fprintf(stderr, "Failed to allocate memory for offsets_map\n");
-        goto cleanup; /* Perform cleanup on such errors */
-    }
-
     rewind(preprocessed); /* Rewind the preprocessed file (also the after macro!) to be read again by second_pass */
     second_pass(preprocessed, &labels, 
                 &entries, &externs, 
                 &inst_list, &data_list, 
                 &ic, &dc, &errors, 
-                number_of_lines, offsets_map); /* Perform second pass */
-
-    /*
-    for (i = 0; i < number_of_lines; i++) {
-        printf("Line %3d: offset = %d\n", i, offsets_map[i]);
-    }
-    */
+                number_of_lines); /* Perform second pass */
 
     /* Only if no errors occured, create output files */
     if (errors == 0){
@@ -102,22 +91,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
         /* Traverse the instruction list and process each node */
         while (curr_wl != NULL) {
             /* Check if the current node represents a line (not a word) */
-            if (curr_wl->is_line) {
-                int index = curr_wl->data.line; /* Retrieve the line index */
-                
-                /* Ensure the line index is within valid bounds */
-                if (index >= 0 && index < number_of_lines) {
-                    /* Create a word from the line data, adjusted by the offset and START_LINE */
-                    Word* inst = create_word_from_number(
-                        curr_wl->data.line + offsets_map[index] + START_LINE, 0, 1, 0
-                    );
-
-                    /* Print the word in hexadecimal format to the .ob file */
-                    print_word_hex(inst, &line, ob);
-                }
-            } else if (curr_wl->data.word != NULL) {
-                print_word_hex(curr_wl->data.word, &line, ob); /* Output the data instruction to the .ob file */
-            }
+            print_word_hex(curr_wl->data.word, &line, ob); /* Output the data instruction to the .ob file */
 
             /* Store the current node in a temporary pointer for cleanup */
             WordList* curr_wl_nptr = curr_wl;
@@ -141,22 +115,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
         /* Traverse the instruction list and process each node */
         while (curr_wl != NULL) {
             /* Check if the current node represents a line (not a word) */
-            if (curr_wl->is_line) {
-                int index = curr_wl->data.line; /* Retrieve the line index */
-                
-                /* Ensure the line index is within valid bounds */
-                if (index >= 0 && index < number_of_lines) {
-                    /* Create a word from the line data, adjusted by the offset and START_LINE */
-                    Word* inst = create_word_from_number(
-                        curr_wl->data.line + offsets_map[index] + START_LINE, 0, 1, 0
-                    );
-
-                    /* Print the word in hexadecimal format to the .ob file */
-                    print_word_hex(inst, &line, ob);
-                }
-            } else if (curr_wl->data.word != NULL) {
-                print_word_hex(curr_wl->data.word, &line, ob); /* Output the data instruction to the .ob file */
-            }
+            print_word_hex(curr_wl->data.word, &line, ob); /* Output the data instruction to the .ob file */
 
             /* Store the current node in a temporary pointer for cleanup */
             WordList* curr_wl_nptr = curr_wl;
@@ -201,11 +160,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
 
             curr = entries; /* Pointer to traverse the entries linked list */
             while (curr != NULL) {
-                uint16_t index = curr->value.number - START_LINE - 1;
-                if (index >= 0 && index < number_of_lines){
-                    fprintf(ent, "%s %07d\n", curr->label, curr->value.number + offsets_map[index]); /* Write label and value */
-                }
-                
+                fprintf(ent, "%s %07d\n", curr->label, curr->value.number); /* Write label and value */                
                 curr = curr->next; /* Move to the next entry */
             }
         }
@@ -232,7 +187,6 @@ void assemble(FILE* file, FILE* am, char* base_name) {
 
    /* Cleanup wrapper, to avoid memory leaks */
    cleanup:
-        if(offsets_map) free(offsets_map);
         if(labels) free_label_list(labels);
         if(externs) free_label_list(externs);
         if(entries) free_label_list(entries);

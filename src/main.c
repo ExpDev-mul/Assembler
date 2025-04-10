@@ -19,30 +19,28 @@ void process_file(const char *input_file) {
     FILE *file = NULL;
     FILE *am = NULL;
 
+    /* Construct the full path to the input file in the inputs/ directory */
+    char input_path[256];
+    int res = snprintf(input_path, sizeof(input_path), "./inputs/%s.as", input_file);
+    if (res < 0 || res >= sizeof(input_path)) {
+        fprintf(stderr, "Error creating input file path\n");
+        return;
+    }
+
     /* Open the input file */
-    file = fopen(input_file, "r");
+    file = fopen(input_path, "r");
     if (!file) {
         perror("Error opening input file");
         return;
     }
 
     /* Extract the base name of the input file (without path and extension) */
-    const char *base_name = strrchr(input_file, '/');
-    base_name = (base_name) ? base_name + 1 : input_file;
-
-    char base_name_copy[256];
-    strncpy(base_name_copy, base_name, sizeof(base_name_copy) - 1);
-    base_name_copy[sizeof(base_name_copy) - 1] = '\0';
-
-    char *base_name_end = strchr(base_name_copy, '.');
-    if (base_name_end != NULL) {
-        *base_name_end = '\0';
-    }
+    const char *base_name = input_file; /* Use the input_file name directly as the base name */
 
     /* Create output directory path and file paths */
     char path[256];
 
-    int res = snprintf(path, sizeof(path), "./outputs/%s.am", base_name_copy);
+    res = snprintf(path, sizeof(path), "./outputs/%s.am", base_name);
     if (res < 0 || res >= sizeof(path)) {
         fprintf(stderr, "Error creating .am file path\n");
         goto cleanup;
@@ -55,7 +53,7 @@ void process_file(const char *input_file) {
     }
 
     /* Assemble the input file */
-    assemble(file, am, base_name_copy);
+    assemble(file, am, base_name);
 
     /* Cleanup wrapper to close files after execution */
     cleanup:
