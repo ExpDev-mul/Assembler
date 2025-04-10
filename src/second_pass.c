@@ -196,7 +196,7 @@ Word* process_operand(int8_t mode, char *arg,
             arg++; /* Skip the '&' character */
             SymbolList *ptr = get_node_by_label(labels, arg);
             if (ptr != NULL) {
-                extra_instruction = create_word_from_number(ptr->value.number - line, 1, 0, 0);
+                extra_instruction = create_word_from_number(ptr->value.number - memory_line, 1, 0, 0);
             } else {
                 error_with_code(LABEL_NOT_FOUND, line, errors);
             }
@@ -218,7 +218,11 @@ Word* process_operand(int8_t mode, char *arg,
 }
 
 Command commands[]; /* Declare variable prototype, imported from opcode.h */
-void second_pass(FILE *preprocessed, SymbolList **labels_ptr, SymbolList **entries_ptr, SymbolList **externs_ptr, WordList **inst_list_ptr, WordList **data_list_ptr, uint8_t *ic, uint8_t *dc, uint8_t *errors, uint8_t number_of_lines, uint8_t *offsets_map) {
+void second_pass(FILE *preprocessed, SymbolList **labels_ptr, 
+                SymbolList **entries_ptr, SymbolList **externs_ptr, 
+                WordList **inst_list_ptr, WordList **data_list_ptr, 
+                uint8_t *ic, uint8_t *dc, uint8_t *errors, 
+                uint8_t number_of_lines, uint8_t *offsets_map) {
     /* Dereference pointers into variables with the same names as in the original code */
     int i; /* Loop variable */
     SymbolList *labels = *labels_ptr;

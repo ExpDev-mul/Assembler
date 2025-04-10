@@ -50,9 +50,15 @@ int process_file(const char *input_file) {
     /* Assemble the input file */
     assemble(file, am, base_name_copy);
 
-    /* Close all files */
-    fclose(file);
-    fclose(am);
+    /* Close all files safely */
+    if (file){
+        fclose(file);
+    }
+
+    if (am){
+        fclose(am);
+    }
+
     return EXIT_SUCCESS;
 }
 

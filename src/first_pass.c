@@ -72,6 +72,12 @@ void first_pass(FILE* file, SymbolList** labels_ptr, SymbolList** entries_ptr, S
                 continue;
             }
 
+            if (is_label_in_list(externs, prefix)) {
+                /* Check if the label is already defined */
+                error_with_code(LABEL_NOT_UNIQUE, line, errors);
+                continue;
+            }
+
             add_label_number(&labels, prefix, line); /* Add the label to the linked list */
             continue;
         }
@@ -83,13 +89,19 @@ void first_pass(FILE* file, SymbolList** labels_ptr, SymbolList** entries_ptr, S
 
             if (arg == NULL) {
                 /* Check for missing argument */
-                error_with_code(ENTRY_MISSING_ARGUMENT, line, errors);
+                error_with_code(EXTERN_MISSING_ARGUMENT, line, errors);
+                continue;
+            }
+
+            if (is_label_in_list(labels, arg)) {
+                /* Check for conflicting entry and extern labels */
+                error_with_code(CONFLICTING_ENTRY_AND_EXTERN, line, errors);
                 continue;
             }
 
             if (is_label_in_list(externs, arg)) {
                 /* Check if the label is already defined as an .extern */
-                error_with_code(EXTERN_ALREADY_DEFINED, line, errors);
+                error_with_code(EXTERN_NOT_UNIQUE, line, errors);
                 continue;
             }
 

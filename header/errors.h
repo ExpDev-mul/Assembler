@@ -31,16 +31,12 @@ enum {
     INVALID_SOURCE_ADDRESSING,      /* Invalid addressing mode for the source operand */
     INVALID_DEST_ADDRESSING,        /* Invalid addressing mode for the destination operand */
 
-    IMMEDIATE_NUMBER_DECLARATION,   /* Immediate number declaration is invalid */
-    EXTERN_IMPORT,                  /* Missing argument for extern import */
+    EXTERN_MISSING_ARGUMENT,        /* Missing argument for extern import */
     ENTRY_MISSING_ARGUMENT,         /* Missing argument for entry declaration */
     MISSING_DATA,                   /* Missing data after .data directive */
 
-    MISSING_NUMBER,                 /* Missing number after immediate addressing symbol (#) */
     INVALID_DATA_VALUE,             /* Invalid value in .data declaration */
     INVALID_STRING_FORMAT,          /* Invalid format in .string declaration */
-    MISSING_CLOSING_QUOTE,          /* Missing closing quote in .string declaration */
-    INVALID_REGISTER_FORMAT,        /* Invalid register format (e.g., rX where X is invalid) */
 
     INVALID_IMMEDIATE_VALUE,        /* Invalid immediate value (e.g., #abc) */
     LABEL_ALREADY_DEFINED,          /* Label is already defined */
@@ -51,6 +47,8 @@ enum {
     EXTERN_ALREADY_DEFINED,         /* Extern label is already defined */
     ENTRY_ALREADY_DEFINED,          /* Entry label is already defined */
     EMPTY_LABEL_DECLARATION,        /* Empty label declaration */
+    EXTERN_NOT_UNIQUE,              /* Extern label is not unique */
+    LABEL_NOT_UNIQUE,               /* Label is not unique */
     CONFLICTING_ENTRY_AND_EXTERN,   /* Extern and entry cannot have the same name */
     MACRO_ALREADY_DEFINED,          /* Macro with that name already exists */
 };

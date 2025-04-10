@@ -182,4 +182,5 @@ void assemble(FILE* file, FILE* am, char* base_name) {
 
     /* Free the memory allocated for the labels linked list */
     free_label_list(labels);
+    free(offsets_map);
 }
