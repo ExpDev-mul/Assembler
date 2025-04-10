@@ -40,7 +40,7 @@ typedef struct SymbolList {
     char *label;                /* The label name */
     ValueType type;             /* The type of value (NUMBER_VALUE or STRING_VALUE) */
     union {
-        uint8_t number;         /* Stores a numeric value */
+        int16_t number;         /* Stores a numeric value */
         char *buffer;           /* Stores a string value */
     } value;
     struct SymbolList *next;    /* Pointer to the next node in the list */
@@ -53,7 +53,7 @@ typedef struct SymbolList {
  * @param label The label name to add.
  * @param number The numeric value to associate with the label.
  */
-void add_label_number(SymbolList **head, const char *label, uint8_t number);
+void add_label_number(SymbolList **head, const char *label, int16_t number);
 
 /**
  * @brief Adds a new node with a string value to the linked list.

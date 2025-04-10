@@ -15,7 +15,7 @@
  * @param label The label name to add.
  * @param number The numeric value to associate with the label.
  */
-void add_label_number(SymbolList **head, const char *label, uint8_t number) {
+void add_label_number(SymbolList **head, const char *label, int16_t number) {
     SymbolList *new_node = (SymbolList *)malloc(sizeof(SymbolList));
     if (!new_node) {
         perror("Failed to allocate memory");
@@ -144,9 +144,9 @@ void print_labels(SymbolList *head) {
     SymbolList *curr = head;
     while (curr != NULL) {
         if (curr->type == NUMBER_VALUE) {
-            printf("Label: %s, Number: %u\n", curr->label, curr->value.number);
+            printf("Label: %s, Number: %i\n", curr->label, curr->value.number);
         } else {
-            printf("Label: %s, String: %s\n", curr->label, curr->value.buffer);
+            printf("Label: %s, String: %i\n", curr->label, curr->value.buffer);
         }
         curr = curr->next;
     }

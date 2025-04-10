@@ -106,7 +106,9 @@ Word* create_word_from_only_number(int8_t number) {
  * @param inst Pointer to the `Word` to free.
  */
 void free_word(Word* inst) {
-    free(inst);
+    if (inst != NULL){
+        free(inst);
+    }
 }
 
 /**

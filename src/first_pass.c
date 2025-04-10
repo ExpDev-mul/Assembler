@@ -48,7 +48,7 @@ void first_pass(FILE* file, SymbolList** labels_ptr,
     SymbolList* labels = *labels_ptr; 
     SymbolList* externs = *externs_ptr;
     SymbolList* entries = *entries_ptr;
-    uint8_t line = START_LINE - 1; /* Line reading starts one line before the START_LINE */
+    uint8_t line = 0; /* Line reading starts one line before the START_LINE */
     char *prefix; /* Pointer to the first token in the line */
     char *pos;    /* Pointer to the position of ':' in the label */
     char *arg;    /* Pointer to the argument after the command */
@@ -139,7 +139,7 @@ void first_pass(FILE* file, SymbolList** labels_ptr,
                 continue;
             }
 
-            add_label_number(&externs, arg, line); /* Add the extern label to the list */
+            add_label_number(&externs, arg, -1); /* Add the extern label to the list */
             continue;
         }
 
@@ -166,7 +166,7 @@ void first_pass(FILE* file, SymbolList** labels_ptr,
                 continue;
             }
 
-            add_label_number(&entries, arg, line); /* Add the entry label to the list */
+            add_label_number(&entries, arg, line - 1); /* Add the entry label to the list, shifted by 1 downward for 0 indexing */
             continue;
         }
     }
@@ -177,15 +177,14 @@ void first_pass(FILE* file, SymbolList** labels_ptr,
         if (!curr->label){ /* Check for NULL label */
             continue;
         }
-
+        
         label = get_node_by_label(labels, curr->label); /* Search for the label */
         if (label != NULL) {
-            curr->value.number = label->value.number; /* Assign the label's line number to the entry */
+            curr->value.number = START_LINE + label->value.number; /* Assign the label's line number to the entry */
         }
 
         curr = curr->next;
     }
-    
 
     /* Update the pointers to the linked lists */
     *labels_ptr = labels;

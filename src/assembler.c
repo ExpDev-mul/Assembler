@@ -88,14 +88,13 @@ void assemble(FILE* file, FILE* am, char* base_name) {
         curr_wl = inst_list; /* Pointer to traverse the data list */
         while (curr_wl != NULL) {
             if (curr_wl->is_line){
-                int index = curr_wl->data.line - START_LINE - 1;
+                int index = curr_wl->data.line;
                 if (index >= 0 && index < number_of_lines){
                     Word* inst = create_word_from_number(
-                        curr_wl->data.line + offsets_map[index], 0, 1, 0
+                        curr_wl->data.line + offsets_map[index] + START_LINE, 0, 1, 0
                     );
 
                     print_word_hex(inst, &line, ob);
-                    free_word(inst);
                 }
             } else if (curr_wl->data.word != NULL) {
                 print_word_hex(curr_wl->data.word, &line, ob); /* Output the data instruction to .ob file */
@@ -103,6 +102,11 @@ void assemble(FILE* file, FILE* am, char* base_name) {
 
             WordList* curr_wl_nptr = curr_wl;
             curr_wl = curr_wl->next; /* Move to the next data instruction */
+
+            if (!curr_wl_nptr->is_line && curr_wl_nptr->data.word != NULL){
+                free_word(curr_wl_nptr->data.word); /* Free the word */
+            }
+
             free(curr_wl_nptr); /* Free linked list from memory */
         }
 
@@ -111,10 +115,10 @@ void assemble(FILE* file, FILE* am, char* base_name) {
         curr_wl = data_list; /* Pointer to traverse the data list */
         while (curr_wl != NULL) {
             if (curr_wl->is_line){
-                int index = curr_wl->data.line - START_LINE - 1;
+                int index = curr_wl->data.line;
                 if (index >= 0 && index < number_of_lines){
                     Word* inst = create_word_from_number(
-                        curr_wl->data.line + offsets_map[index], 0, 1, 0
+                        curr_wl->data.line + offsets_map[index] + START_LINE, 0, 1, 0
                     );
 
                     print_word_hex(inst, &line, ob);
@@ -126,6 +130,11 @@ void assemble(FILE* file, FILE* am, char* base_name) {
 
             curr_wl_nptr = curr_wl;
             curr_wl = curr_wl->next; /* Move to the next data instruction */
+
+            if (!curr_wl_nptr->is_line && curr_wl_nptr->data.word != NULL){
+                free_word(curr_wl_nptr->data.word); /* Free the word */
+            }
+
             free(curr_wl_nptr); /* Free linked list from memory */
         }
 
@@ -138,6 +147,8 @@ void assemble(FILE* file, FILE* am, char* base_name) {
         */
         SymbolList *curr; /* SymbolList iterator variable */
 
+        print_labels(entries);
+
         /* Write entry labels to the .ent file, in case they are non-empty */
         if (entries != NULL){ /* Check if entries list is non-empty */
             snprintf(path, sizeof(path), "./outputs/%s.ent", base_name);
@@ -149,10 +160,11 @@ void assemble(FILE* file, FILE* am, char* base_name) {
 
             curr = entries; /* Pointer to traverse the entries linked list */
             while (curr != NULL) {
-                uint8_t index = curr->value.number - START_LINE - 1;
+                uint16_t index = curr->value.number - START_LINE - 1;
                 if (index >= 0 && index < number_of_lines){
                     fprintf(ent, "%s %07d\n", curr->label, curr->value.number + offsets_map[index]); /* Write label and value */
                 }
+                
                 curr = curr->next; /* Move to the next entry */
             }
         }
@@ -168,11 +180,11 @@ void assemble(FILE* file, FILE* am, char* base_name) {
 
             curr = externs; /* Reuse the pointer to traverse the externs linked list */
             while (curr != NULL) {
-                uint8_t index = curr->value.number - START_LINE - 1;
-                if (index >= 0 && index < number_of_lines){
-                    fprintf(ext, "%s %07d\n", curr->label, curr->value.number + offsets_map[index]); /* Write label and value */
-                }            
-                curr = curr->next; /* Move to the next extern */
+                if (curr->value.number != -1){
+                    fprintf(ext, "%s %07d\n", curr->label, curr->value.number); /* Write label and value */
+                }
+
+                curr = curr->next; /* Move to the next entry */
             }
         }
     }
@@ -181,6 +193,8 @@ void assemble(FILE* file, FILE* am, char* base_name) {
    cleanup:
         if(offsets_map) free(offsets_map);
         if(labels) free_label_list(labels);
+        if(externs) free_label_list(externs);
+        if(entries) free_label_list(entries);
         if(ob) fclose(ob);
         if(ent) fclose(ent);
         if(ext) fclose(ext);

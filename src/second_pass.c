@@ -159,10 +159,10 @@ int8_t extract_number(char *arg) {
  * @return A pointer to a `Word` structure representing the extra instruction, or NULL if no extra instruction is needed.
  */
 Word* process_operand(int8_t mode, char *arg, 
-                        SymbolList *labels, SymbolList *externs, 
-                        uint8_t line, uint8_t memory_line, 
-                        uint8_t *errors, uint8_t offset, 
-                        uint8_t* flag_relative_address) {
+                      SymbolList *labels, SymbolList **externs, 
+                      uint8_t line, uint16_t memory_line, 
+                      uint8_t *errors, uint8_t offset, 
+                      uint8_t* flag_relative_address) {
     Word *extra_instruction = NULL; /* Pointer to the extra instruction */
 
     switch (mode) {
@@ -179,11 +179,14 @@ Word* process_operand(int8_t mode, char *arg,
             /* Direct addressing requires an extra word */
             SymbolList *ptr = get_node_by_label(labels, arg);
             if (ptr != NULL) {
-                *flag_relative_address = memory_line;
+                *flag_relative_address = line;
             } else {
-                ptr = get_node_by_label(externs, arg);
+                SymbolList *externs_ptr = *externs;
+                ptr = get_node_by_label(externs_ptr, arg);
                 if (ptr != NULL) {
-                    *flag_relative_address = memory_line;
+                    *flag_relative_address = line;
+                    add_label_number(&externs_ptr, arg, memory_line); /* Modify the original externs list */
+                    *externs = externs_ptr;
                 } else {
                     error_with_code(LABEL_NOT_FOUND, line, errors);
                 }
@@ -196,7 +199,7 @@ Word* process_operand(int8_t mode, char *arg,
             arg++; /* Skip the '&' character */
             SymbolList *ptr = get_node_by_label(labels, arg);
             if (ptr != NULL) {
-                extra_instruction = create_word_from_number(ptr->value.number - memory_line, 1, 0, 0);
+                extra_instruction = create_word_from_number(ptr->value.number - line, 1, 0, 0);
             } else {
                 error_with_code(LABEL_NOT_FOUND, line, errors);
             }
@@ -232,18 +235,14 @@ void second_pass(FILE *preprocessed, SymbolList **labels_ptr,
     WordList *data_list = *data_list_ptr;
     char buffer[BUFFER_SIZE];
     bool stay_in_line = false;
-    uint8_t memory_line = START_LINE; /* Current memory line number */
+    uint16_t memory_line = START_LINE; /* Current memory line number */
     uint8_t line = 0; /* Actual reading line from the file */
     bool is_command = false;
     uint8_t offset = 0; /* Define the offset from our current line to the memory image line */
     
     while (1){
-        offsets_map[line] = offset; /* Store our current line offset */
-
-        line++; /* Increment crurent line index */
         char *command; /* The first token separated by a comma is our actual command. */
         if (stay_in_line){
-            stay_in_line = false;
             command = strtok(NULL, " ");
         } else {
             if (fgets(buffer, BUFFER_SIZE, preprocessed) == NULL){
@@ -253,6 +252,21 @@ void second_pass(FILE *preprocessed, SymbolList **labels_ptr,
             buffer[strcspn(buffer, "\n")] = '\0'; /* Remove newline character automatically inserted by fgets */
             command = strtok(buffer, " "); /* Tokenize the command (e.g, mov, add, stop) */
         }
+
+        if (line >= 0 && line < number_of_lines){
+            /* If we are within the range of lines */
+            offsets_map[line] = offset; /* Store our current line offset */
+        } else {
+            fprintf(stderr, "Error: Line index out of bounds (line: %d, number_of_lines: %d)\n", line, number_of_lines);
+            break; /* Exit the loop if line index is out of bounds */
+        }
+
+        if (!stay_in_line){
+            line++; /* Increment line number for the next iteration */
+        } else {
+            stay_in_line = false;
+        }
+
         
         if (command == NULL){
             /* If the command tokenized is null, it might mean this is an empty line, just skip it */
@@ -465,21 +479,8 @@ void second_pass(FILE *preprocessed, SymbolList **labels_ptr,
                 uint8_t flag_relative_address_one = 0;
                 uint8_t flag_relative_address_two = 0;
 
-                if (cmd.operands_num == 2) {
-                    /*
-                        The only possible scenario now is 2 operands, and a src_mode left untreated.
-                        Therefore, we must also look into the src_mode in this scenario.
-                    */
-                
-                    /* Process the source operand */
-                    arg = arg1; /* The source argument */
-                    extra_instruction_one = process_operand(src_mode, arg, labels, externs, line, memory_line, errors, offset, &flag_relative_address_one);
-                }
-                
-                /* Process the destination operand */
-                arg = (cmd.operands_num == 2) ? arg2 : arg1; /* The destination argument */
-                extra_instruction_two = process_operand(dest_mode, arg, labels, externs, line, memory_line, errors, offset, &flag_relative_address_two);
-                
+                bool src_mode_defined = (src_mode != -1);
+                bool dest_mode_defined = (dest_mode != -1);
                 /* Return the modes back to 0 if they were -1 (which was temporary flagging for the absence of such operand!) */
                 if (src_mode == -1){ src_mode = 0; }
                 if (dest_mode == -1){ dest_mode = 0; }
@@ -494,6 +495,19 @@ void second_pass(FILE *preprocessed, SymbolList **labels_ptr,
                 add_word(&inst_list, instruction); /* Add the instruction to the instruction list */
                 memory_line++;
 
+                if (cmd.operands_num == 2) {
+                    /*
+                        The only possible scenario now is 2 operands, and a src_mode left untreated.
+                        Therefore, we must also look into the src_mode in this scenario.
+                    */
+                
+                    /* Process the source operand */
+                    arg = arg1; /* The source argument */
+                    extra_instruction_one = process_operand(src_mode_defined ? src_mode : -1, arg, labels, 
+                                                            &externs, line, memory_line, 
+                                                            errors, offset, &flag_relative_address_one);
+                }
+                
                 if (extra_instruction_one != NULL){
                     /* If there is an extra instruction, we will output it to .ob file */
                     (*ic)++;
@@ -506,6 +520,12 @@ void second_pass(FILE *preprocessed, SymbolList **labels_ptr,
                     memory_line++;
                 }
 
+                
+                /* Process the destination operand */
+                arg = (cmd.operands_num == 2) ? arg2 : arg1; /* The destination argument */
+                extra_instruction_two = process_operand(dest_mode_defined ? dest_mode : -1, arg, labels, 
+                                                        &externs, line, memory_line, 
+                                                        errors, offset, &flag_relative_address_two);
                 if (extra_instruction_two != NULL){
                     /* If there is an extra instruction, we will output it to .ob file */
                     (*ic)++;
@@ -525,6 +545,7 @@ void second_pass(FILE *preprocessed, SymbolList **labels_ptr,
         if (!is_command){
             /* Invalid command name */
             error_with_code(INVALID_COMMAND_NAME, line, errors);
+            continue;
         }
     }
 
@@ -535,4 +556,3 @@ void second_pass(FILE *preprocessed, SymbolList **labels_ptr,
     *inst_list_ptr = inst_list;
     *data_list_ptr = data_list;
 }
-
