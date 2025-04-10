@@ -28,26 +28,16 @@ void assemble(FILE* file, FILE* am, char* base_name) {
     uint8_t errors = 0;             /* Counter for errors during runtime */
     uint8_t ic = 0;                 /* Instruction counter */
     uint8_t dc = 0;                 /* Data counter */
-    FILE* ob;                       /* .ob file, to write down on */
-    FILE* ent;                      /* .ent file, to write down on */
-    FILE* ext;                      /* .ext file, to write down on */
+    FILE* ob = NULL;                       /* .ob file, to write down on */
+    FILE* ent = NULL;                      /* .ent file, to write down on */
+    FILE* ext = NULL;                      /* .ext file, to write down on */
     char path[256];                 /* Path buffer for output files */
     uint8_t *offsets_map;           /* Array to store offsets for each line */
     uint8_t number_of_lines;        /* Number of lines in the preprocessed file */
     int ic_length;                  /* Length of the instruction counter (IC) */
     int padding;                    /* Computed padding for IC and DC display */
-    WordList *curr_wl;              /* Pointer to traverse the data list */
-    WordList* curr_wl_nptr;         /* Temporary pointer */
-
-    /* Cleanup wrapper, to avoid memory leaks */
-    cleanup:
-        if(offsets_map) free(offsets_map);
-        if(labels) free_label_list(labels);
-        if(preprocessed) fclose(preprocessed);
-        if(ob) fclose(ob);
-        if(ent) fclose(ent);
-        if(ext) fclose(ext);
-        return;
+    WordList *curr_wl = NULL;              /* Pointer to traverse the data list */
+    WordList* curr_wl_nptr = NULL;         /* Temporary pointer */
 
     /* Step 1: Preprocessing */
     preprocess(file, preprocessed); /* Expand macros and preprocess the input file */
@@ -187,6 +177,12 @@ void assemble(FILE* file, FILE* am, char* base_name) {
         }
     }
 
-    /* Free the memory allocated for the labels linked list */
-    goto cleanup;
+   /* Cleanup wrapper, to avoid memory leaks */
+   cleanup:
+        if(offsets_map) free(offsets_map);
+        if(labels) free_label_list(labels);
+        if(ob) fclose(ob);
+        if(ent) fclose(ent);
+        if(ext) fclose(ext);
+        return;
 }

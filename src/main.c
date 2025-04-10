@@ -15,16 +15,18 @@
  * @param input_file The path to the input file.
  * @return EXIT_SUCCESS on success, or EXIT_FAILURE on failure.
  */
-int process_file(const char *input_file) {
+void process_file(const char *input_file) {
+    FILE *file = NULL;
+    FILE *am = NULL;
+
     /* Open the input file */
-    FILE *file = fopen(input_file, "r");
+    file = fopen(input_file, "r");
     if (!file) {
         perror("Error opening input file");
-        return EXIT_FAILURE;
+        return;
     }
 
     /* Extract the base name of the input file (without path and extension) */
-
     const char *base_name = strrchr(input_file, '/');
     base_name = (base_name) ? base_name + 1 : input_file;
 
@@ -43,30 +45,29 @@ int process_file(const char *input_file) {
     int res = snprintf(path, sizeof(path), "./outputs/%s.am", base_name_copy);
     if (res < 0 || res >= sizeof(path)) {
         fprintf(stderr, "Error creating .am file path\n");
-        fclose(file);
-        return EXIT_FAILURE;
+        goto cleanup;
     }
 
-    FILE *am = fopen(path, "w+");
+    am = fopen(path, "w+");
     if (!am) {
         fprintf(stderr, "Error opening .am file for writing: %s\n", path);
-        fclose(file);
-        return EXIT_FAILURE;
+        goto cleanup;
     }
 
     /* Assemble the input file */
     assemble(file, am, base_name_copy);
 
-    /* Close all files safely */
-    if (file){
-        fclose(file);
-    }
+    /* Cleanup wrapper to close files after execution */
+    cleanup:
+        if (file) {
+            fclose(file);
+        }
 
-    if (am){
-        fclose(am);
-    }
+        if (am) {
+            fclose(am);
+        }
 
-    return EXIT_SUCCESS;
+        return;
 }
 
 /**
@@ -79,7 +80,7 @@ int process_file(const char *input_file) {
  * @param argv The array of command-line arguments.
  * @return EXIT_SUCCESS on success, or EXIT_FAILURE on failure.
  */
-int main(int argc, char *argv[]) {
+void main(int argc, char *argv[]) {
     int i; /* Loop variable */
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <input_file1.as> [<input_file2.as> ...]\n", argv[0]);
@@ -89,10 +90,7 @@ int main(int argc, char *argv[]) {
     /* Process each input file */
     for (i = 1; i < argc; i++) {
         printf("Processing file: %s\n", argv[i]);
-        if (process_file(argv[i]) == EXIT_FAILURE) {
-            fprintf(stderr, "Failed to process file: %s\n", argv[i]);
-            return EXIT_FAILURE;
-        }
+        process_file(argv[i]);
     }
 
     return EXIT_SUCCESS;

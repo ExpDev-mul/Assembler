@@ -1,3 +1,1 @@
-.extern yes
-
-yes: add r3,r2
+add r3,r2

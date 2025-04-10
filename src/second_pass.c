@@ -234,7 +234,6 @@ void second_pass(FILE *preprocessed, SymbolList **labels_ptr,
     bool stay_in_line = false;
     uint8_t memory_line = START_LINE; /* Current memory line number */
     uint8_t line = 0; /* Actual reading line from the file */
-    
     bool is_command = false;
     uint8_t offset = 0; /* Define the offset from our current line to the memory image line */
     

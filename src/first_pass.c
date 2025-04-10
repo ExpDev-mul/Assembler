@@ -23,6 +23,7 @@
 void first_pass(FILE* file, SymbolList** labels_ptr, 
                 SymbolList** entries_ptr, SymbolList** externs_ptr, 
                 uint8_t* errors, uint8_t* number_of_lines) {
+    /* Check for NULL pointers */
     if (file == NULL) {
         fprintf(stderr, "Error: Input file pointer is NULL.\n");
         return;
@@ -51,6 +52,8 @@ void first_pass(FILE* file, SymbolList** labels_ptr,
     char *prefix; /* Pointer to the first token in the line */
     char *pos;    /* Pointer to the position of ':' in the label */
     char *arg;    /* Pointer to the argument after the command */
+    SymbolList* label = NULL; /* Pointer to the label node in the linked list */
+    SymbolList* curr = NULL; /* Pointer to the current node in the linked list */
 
     while (1) {
         /* Read a line from the file */
@@ -142,7 +145,7 @@ void first_pass(FILE* file, SymbolList** labels_ptr,
 
         if (!strcmp(prefix, ".entry")) {
             /* Handle .entry declarations */
-            char *arg = strtok(NULL, " ");
+            arg = strtok(NULL, " ");
             skip_leading_spaces(&arg);
 
             if (arg == NULL) {
@@ -169,15 +172,20 @@ void first_pass(FILE* file, SymbolList** labels_ptr,
     }
 
     /* Resolve .entry labels to their corresponding line numbers */
-    SymbolList* curr = entries;
+    curr = entries;
     while (curr != NULL) {
-        SymbolList* label = get_node_by_label(labels, curr->label); /* Search for the label */
+        if (!curr->label){ /* Check for NULL label */
+            continue;
+        }
+
+        label = get_node_by_label(labels, curr->label); /* Search for the label */
         if (label != NULL) {
             curr->value.number = label->value.number; /* Assign the label's line number to the entry */
         }
 
         curr = curr->next;
     }
+    
 
     /* Update the pointers to the linked lists */
     *labels_ptr = labels;
