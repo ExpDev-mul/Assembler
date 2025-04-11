@@ -9,95 +9,11 @@
 #include "../header/word.h"
 #include "../header/opcode.h"
 #include "../header/lib.h"
-#include "../header/labels.h"
+#include "../header/symbols.h"
 #include "../header/preprocessing.h"
 #include "../header/errors.h"
 #include "../header/validators.h"
-#include "../header/second_pass.h"
-
-void add_word(WordList **head, Word *word) {
-    if (!word) {
-        fprintf(stderr, "Error: Word pointer is NULL\n");
-        return;
-    }
-
-    WordList *new_node = (WordList *)malloc(sizeof(WordList));
-    if (!new_node) {
-        perror("Failed to allocate memory");
-        exit(EXIT_FAILURE);
-    }
-
-    new_node->data.word = word; /* Store the Word pointer in the union */
-    new_node->is_line = false;  /* Indicate that this node stores a Word */
-    new_node->next = *head;     /* Insert at the beginning for O(1) insertion */
-    *head = new_node;
-}
-
-void add_line(WordList **head, uint8_t line) {
-    WordList *new_node = (WordList *)malloc(sizeof(WordList));
-    if (!new_node) {
-        perror("Failed to allocate memory");
-        exit(EXIT_FAILURE);
-    }
-
-    new_node->data.line = line; /* Store the line number in the union */
-    new_node->is_line = true;   /* Indicate that this node stores a line */
-    new_node->next = *head;     /* Insert at the beginning for O(1) insertion */
-    *head = new_node;
-}
-
-/**
- * @brief Reverses our words linked list, for parsing at the end.
- * 
- * This function traverses the linked list and frees each node and its associated word.
- * With an O(n) time complexity, a sufficienly efficient algorithm.
- * 
- * @param head Pointer to the head of the linked list.
- */
-void reverse_list(WordList **head) {
-    WordList *prev = NULL;
-    WordList *current = *head;
-    WordList *next = NULL;
-
-    while (current != NULL) {
-        next = current->next; /* Store the next node */
-        current->next = prev; /* Reverse the link */
-        prev = current;       /* Move prev to current */
-        current = next;       /* Move to the next node */
-    }
-
-    *head = prev; /* Update the head pointer */
-}
-
-/**
- * @brief Retrieves the addressing mode of an argument.
- * 
- * This function determines the addressing mode of the given argument based on its prefix.
- * 
- * @param arg The argument whose addressing mode is to be determined.
- * @return The addressing mode as a uint8_t value.
- */
-uint8_t get_mode(char *arg) {
-    /* Ensure the argument is not NULL */
-    if (arg == NULL) {
-        return 0;
-    }
-
-    /* Determine the addressing mode based on the prefix */
-    if (arg[0] == 'r') {
-        /* Register case (e.g., r0, r2, r9) */
-        return DIRECT_REGISTER_ADRS;
-    } else if (arg[0] == '#') {
-        /* Immediate number case (e.g., #5, #-3) */
-        return IMMEDIATE_ADRS;
-    } else if (arg[0] == '&') {
-        /* Relative addressing case (e.g., &START, &END) */
-        return RELATIVE_ADRS;
-    } else {
-        /* Direct addressing case (e.g., MAIN, END, basically labels) */
-        return DIRECT_ADRS;
-    }
-}
+#include "../header/second_pass.h" /* Already includes word_list.h */
 
 /**
  * @brief Retrieves the register number from an argument.
@@ -157,10 +73,10 @@ int8_t extract_number(char *arg) {
  * @return A pointer to a `Word` structure representing the extra instruction, or NULL if no extra instruction is needed.
  */
 Word* process_operand(int8_t mode, char *arg, 
-                      SymbolList *labels, SymbolList **externs, 
-                      uint8_t line, uint16_t memory_line, 
-                      uint8_t *errors) {
+                      SymbolList **symbols_ptr, uint8_t line, 
+                      uint8_t *ic, uint8_t *errors) {
     Word *extra_instruction = NULL;
+    SymbolList* symbols = *symbols_ptr;
 
     switch (mode) {
         case IMMEDIATE_ADRS:
@@ -174,20 +90,21 @@ Word* process_operand(int8_t mode, char *arg,
 
         case DIRECT_ADRS: {
             /* Direct addressing creates a word with the label's memory address */
-            SymbolList *ptr = get_node_by_label(labels, arg);
+            SymbolList *ptr = get_symbol_by_label(symbols, arg);
             if (ptr != NULL) {
-                /* Create word with the label's actual memory address */
-                extra_instruction = create_word_from_number(ptr->value.number, 1, 0, 0);
-            } else {
-                SymbolList *externs_ptr = *externs;
-                ptr = get_node_by_label(externs_ptr, arg);
-                if (ptr != NULL) {
-                    /* For external labels, create word and update externs list */
+                /*
+                printf("%s %i %i\n", arg, ptr->symbol_type, ptr->value.number);
+                */
+                if (ptr->symbol_type == SYMBOL_DATA || 
+                    ptr->symbol_type == SYMBOL_INSTRUCTION ||
+                    ptr->symbol_type == SYMBOL_ENTRY) {
+                    /* Create word with the label's actual memory address */
+                    extra_instruction = create_word_from_number(ptr->value.number, 1, 0, 0);
+                }
+
+                if (ptr->symbol_type == SYMBOL_EXTERN){
                     extra_instruction = create_word_from_number(0, 0, 0, 1); /* External word */
-                    add_label_number(&externs_ptr, arg, memory_line);
-                    *externs = externs_ptr;
-                } else {
-                    error_with_code(LABEL_NOT_FOUND, line, errors);
+                    add_symbol_number(&symbols, arg, START_LINE + *ic, SYMBOL_EXTERN);
                 }
             }
             break;
@@ -196,10 +113,10 @@ Word* process_operand(int8_t mode, char *arg,
         case RELATIVE_ADRS: {
             /* Relative addressing creates a word with the relative distance */
             arg++; /* Skip the '&' character */
-            SymbolList *ptr = get_node_by_label(labels, arg);
+            SymbolList *ptr = get_symbol_by_label(symbols, arg);
             if (ptr != NULL) {
                 int16_t target_address = ptr->value.number;
-                int16_t current_address = memory_line - 1;
+                int16_t current_address = START_LINE + *ic;
                 int16_t relative_distance = target_address - current_address;
                 
                 extra_instruction = create_word_from_number(relative_distance, 1, 0, 0);
@@ -220,26 +137,21 @@ Word* process_operand(int8_t mode, char *arg,
             break;
     }
 
+    *symbols_ptr = symbols; /* Update the symbols pointer */
     return extra_instruction;
 }
 
-void second_pass(FILE *preprocessed, SymbolList **labels_ptr, 
-                SymbolList **entries_ptr, SymbolList **externs_ptr, 
+void second_pass(FILE *preprocessed, SymbolList **symbols_ptr, 
                 WordList **inst_list_ptr, WordList **data_list_ptr, 
                 uint8_t *ic, uint8_t *dc, uint8_t *errors, 
                 uint8_t number_of_lines) {
     /* Dereference pointers into variables with the same names as in the original code */
     int i; /* Loop variable */
-
-    SymbolList *labels = *labels_ptr;
-    SymbolList *entries = *entries_ptr;
-    SymbolList *externs = *externs_ptr;
-
+    SymbolList *symbols = *symbols_ptr;
     WordList *inst_list = *inst_list_ptr;
     WordList *data_list = *data_list_ptr;
     char buffer[BUFFER_SIZE];
     bool stay_in_line = false;
-    uint16_t memory_line = START_LINE; /* Current memory line number */
     uint8_t line = 0; /* Actual reading line from the file */
     bool is_command = false;
     
@@ -480,7 +392,6 @@ void second_pass(FILE *preprocessed, SymbolList **labels_ptr,
 
                 (*ic)++;
                 add_word(&inst_list, instruction); /* Add the instruction to the instruction list */
-                memory_line++;
 
                 if (cmd.operands_num == 2) {
                     /*
@@ -490,29 +401,25 @@ void second_pass(FILE *preprocessed, SymbolList **labels_ptr,
                 
                     /* Process the source operand */
                     arg = arg1; /* The source argument */
-                    extra_instruction_one = process_operand(src_mode_defined ? src_mode : -1, arg, labels, 
-                                                            &externs, line, memory_line, 
-                                                            errors);
+                    extra_instruction_one = process_operand(src_mode_defined ? src_mode : -1, arg, 
+                                                            &symbols, line, ic, errors);
                 }
                 
                 if (extra_instruction_one != NULL){
                     /* If there is an extra instruction, we will output it to .ob file */
                     (*ic)++;
                     add_word(&inst_list, extra_instruction_one); /* Add the instruction to the instruction list */
-                    memory_line++;
                 }
 
                 
                 /* Process the destination operand */
                 arg = (cmd.operands_num == 2) ? arg2 : arg1; /* The destination argument */
-                extra_instruction_two = process_operand(dest_mode_defined ? dest_mode : -1, arg, labels, 
-                                                        &externs, line, memory_line, 
-                                                        errors);
+                extra_instruction_two = process_operand(dest_mode_defined ? dest_mode : -1, arg,
+                                                        &symbols, line, ic, errors);
                 if (extra_instruction_two != NULL){
                     /* If there is an extra instruction, we will output it to .ob file */
                     (*ic)++;
                     add_word(&inst_list, extra_instruction_two); /* Add the instruction to the instruction list */
-                    memory_line++;
                 }
 
                 break;
@@ -527,9 +434,7 @@ void second_pass(FILE *preprocessed, SymbolList **labels_ptr,
     }
 
     /* Update the pointers to the linked lists */
-    *labels_ptr = labels;
-    *entries_ptr = entries;
-    *externs_ptr = externs;
+    *symbols_ptr = symbols;
     *inst_list_ptr = inst_list;
     *data_list_ptr = data_list;
 }

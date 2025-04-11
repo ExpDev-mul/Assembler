@@ -31,8 +31,7 @@
  * @param externs_ptr Pointer to the linked list of extern labels.
  * @param errors Pointer to the error counter to track the number of errors.
  */
-void first_pass(FILE* file, SymbolList** labels_ptr, 
-                SymbolList** entries_ptr, SymbolList** externs_ptr, 
+void first_pass(FILE* file, SymbolList** symbols_ptr, 
                 uint8_t* errors, uint8_t* number_of_lines);
 
 #endif /* FIRST_PASS_H */

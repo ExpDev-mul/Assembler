@@ -3,7 +3,7 @@
 
 #include "../header/preprocessing.h"
 #include "../header/assembler.h"
-#include "../header/labels.h"
+#include "../header/symbols.h"
 #include "../header/lib.h"
 #include "../header/errors.h"
 #include "../header/opcode.h"
@@ -24,10 +24,10 @@ void preprocess(FILE* file, FILE* temp) {
 
     /* Macro buffers */
     char macro_buffer[BUFFER_SIZE * 10]; /* Buffer to store macro content */
-    char macro_name[10];                /* Buffer to store macro name */
+    char macro_name[10];                 /* Buffer to store macro name */
 
-    SymbolList* macros = NULL;          /* Linked list to store macros */
-    bool is_reading_macro = false;      /* Flag to indicate if we're reading a macro */
+    SymbolList* macros = NULL;           /* Linked list to store macros */
+    bool is_reading_macro = false;       /* Flag to indicate if we're reading a macro */
 
     while (1) {
         /* Read a line from the input file */
@@ -55,6 +55,7 @@ void preprocess(FILE* file, FILE* temp) {
             /* Start of a macro declaration */
             char *arg = strtok(NULL, " "); /* Extract the macro name */
             if (arg == NULL) {
+                /* If there is no name provided */
                 fprintf(stderr, "Error: Missing macro name.\n");
                 continue;
             }
@@ -62,11 +63,13 @@ void preprocess(FILE* file, FILE* temp) {
             strcpy(macro_name, arg); /* Store the macro's name */
 
             if (is_command(macro_name)){
+                /* If the macro name is the name of a command */
                 error_with_code_only(MACRO_NAME_IS_COMMAND);
                 continue;
             }
 
-            if (is_label_in_list(macros, macro_name)) {
+            if (is_symbol_exists(macros, macro_name)) {
+                /* If the macro name is already defined as anotehr macro */
                 error_with_code_only(MACRO_ALREADY_DEFINED);
                 continue;
             }
@@ -77,36 +80,36 @@ void preprocess(FILE* file, FILE* temp) {
 
         if (!strcmp(prefix, "mcroend")) {
             /* End of a macro declaration */
-            add_label_string(&macros, macro_name, macro_buffer); /* Add the macro to the list */
-            memset(macro_buffer, 0, sizeof(macro_buffer));       /* Clear the macro buffer */
-            is_reading_macro = false;                           /* Disable macro reading mode */
+            add_symbol_string(&macros, macro_name, macro_buffer, SYMBOL_MACRO); /* Add the macro to the list */
+            memset(macro_buffer, 0, sizeof(macro_buffer)); /* Clear the macro buffer, for next readings */
+            is_reading_macro = false; /* Disable macro reading mode */
             continue;
         }
 
         if (is_reading_macro) {
             /* Append the current line to the macro buffer */
-            char *buffer_copy_ptr = buffer_copy;
-            skip_leading_spaces(&buffer_copy_ptr);
-            strncat(macro_buffer, buffer_copy_ptr, MACRO_SIZE);
-            strncat(macro_buffer, "\n", MACRO_SIZE);
+            char *buffer_copy_ptr = buffer_copy; /* Cast into a pointer string, to be used by skip_leading_spaces */
+            skip_leading_spaces(&buffer_copy_ptr); /* Skip all leading spaces in the line (macros are usually indented!) */
+            strncat(macro_buffer, buffer_copy_ptr, MACRO_SIZE); /* Concatenate (add) the line to the macro_buffer */
+            strncat(macro_buffer, "\n", MACRO_SIZE); /* Ensure we add a newline character (which was removed in the beginning of the loop.) */
             continue;
         }
 
         /* Check if the current line matches a macro name */
-        SymbolList* macro_ptr = get_node_by_label(macros, prefix);
+        SymbolList* macro_ptr = get_symbol_by_label(macros, prefix);
         if (macro_ptr != NULL) {
-            /* If the macro exists, write its content to the temporary file */
+            /* If the macro exists, write its content to the .am file */
             fputs(macro_ptr->value.buffer, temp);
             continue;
         }
 
-        /* Write the current line to the temporary file */
-        char *buffer_copy_ptr = buffer_copy;
-        skip_leading_spaces(&buffer_copy_ptr);
-        fputs(buffer_copy_ptr, temp);
-        fputc('\n', temp);
+        /* Write the current line to the .am file */
+        char *buffer_copy_ptr = buffer_copy; /* Cast into a pointer, to be used by skip_leading_spaces */
+        skip_leading_spaces(&buffer_copy_ptr); /* Skip leading spaces of macro (as macros usually have indentations!) */
+        fputs(buffer_copy_ptr, temp); /* Write the macro copy buffer into the 'temp' file (.am!) */
+        fputc('\n', temp); /* Add new line which is removed at the beginning. */
     }
 
     /* Free the memory allocated for the macros linked list */
-    free_label_list(macros);
+    free_symbol_list(macros);
 }

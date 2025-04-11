@@ -14,7 +14,7 @@
 #define PREPROCESSING_C
 
 #include <stdio.h>
-#include "../header/labels.h"
+#include "../header/symbols.h"
 
 /**
  * @brief Preprocesses the input file for the assembler.

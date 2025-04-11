@@ -8,11 +8,12 @@
 #include "../header/assembler.h"
 #include "../header/word.h"
 #include "../header/lib.h"
-#include "../header/labels.h"
+#include "../header/symbols.h"
 #include "../header/errors.h"
 #include "../header/preprocessing.h"
 #include "../header/first_pass.h"
 #include "../header/second_pass.h"
+#include "../header/word_list.h"
 
 uint8_t errors; /* Prototype for errors counter, accessed widely through this file context */
 
@@ -21,9 +22,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
     uint8_t line = START_LINE;      /* Current line number */
 
     /* Note: Our symbols are not a single table but rather split across multiple lists for every symbol decoding possible */
-    SymbolList *labels = NULL;      /* Linked list for labels */
-    SymbolList *entries = NULL;     /* Linked list for entry labels */
-    SymbolList *externs = NULL;     /* Linked list for extern labels */
+    SymbolList *symbols = NULL;
 
     WordList *inst_list = NULL;     /* Linked list for instruction instructions */
     WordList *data_list = NULL;     /* Linked list for data instructions */
@@ -48,11 +47,10 @@ void assemble(FILE* file, FILE* am, char* base_name) {
     rewind(preprocessed);
 
     number_of_lines = 0; /* Initialize number of lines counter */
-    first_pass(preprocessed, &labels, 
-                &entries, &externs, 
+    first_pass(preprocessed, &symbols, 
                 &errors, &number_of_lines); /* Extract labels and validate syntax, while counting the number of lines and updating number_of_lines */
 
-    /* Check for errors after the first pass */
+    /* If there are already errors in the first pass, stop the program and perform cleanup */
     if (errors > 0) {
         fprintf(stderr, "Errors found in the first pass. Exiting...\n");
         goto cleanup;
@@ -60,8 +58,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
 
     /* Step 3: Second Pass */
     rewind(preprocessed); /* Rewind the preprocessed file (also the after macro!) to be read again by second_pass */
-    second_pass(preprocessed, &labels, 
-                &entries, &externs, 
+    second_pass(preprocessed, &symbols, 
                 &inst_list, &data_list, 
                 &ic, &dc, &errors, 
                 number_of_lines); /* Perform second pass */
@@ -132,14 +129,10 @@ void assemble(FILE* file, FILE* am, char* base_name) {
             free(curr_wl_nptr);
         }
 
-        /**
-        * @brief Writes entries and externs to their respective files and finalizes the output.
-        * 
-        * This section writes the entry and extern labels to their respective files, frees the
-        * allocated memory for the labels list, and appends the instruction and data counters (IC and DC)
-        * to the beginning of the object file.
-        */
-        SymbolList *curr; /* SymbolList iterator variable */
+
+
+
+
 
 
 
@@ -149,8 +142,18 @@ void assemble(FILE* file, FILE* am, char* base_name) {
 
 
 
-        /* Write entry labels to the .ent file, in case they are non-empty */
-        if (entries != NULL){ /* Check if entries list is non-empty */
+
+        
+        /**
+         * @brief Handle entry symbols and write to .ent file if any exist
+         * 
+         * Only creates the .ent file if there are entry symbols to write.
+         * Each entry is written in format: "symbol_name memory_address"
+         * where memory_address is padded to 7 digits.
+         */
+        SymbolList *curr; /* SymbolList iterator variable */
+        if (count_symbols_by_type(symbols, SYMBOL_ENTRY) > 0) {
+            /* Create .ent file only when entries exist */
             snprintf(path, sizeof(path), "./outputs/%s.ent", base_name);
             ent = fopen(path, "w+");
             if (!ent) {
@@ -158,38 +161,48 @@ void assemble(FILE* file, FILE* am, char* base_name) {
                 goto cleanup;
             }
 
-            curr = entries; /* Pointer to traverse the entries linked list */
+            /* Write each entry symbol and its resolved address */
+            curr = symbols;
             while (curr != NULL) {
-                fprintf(ent, "%s %07d\n", curr->label, curr->value.number); /* Write label and value */                
-                curr = curr->next; /* Move to the next entry */
+                if (curr->symbol_type == SYMBOL_ENTRY) {
+                    fprintf(ent, "%s %07d\n", curr->label, curr->value.number); /* Write to .ent */
+                }
+                curr = curr->next;
             }
         }
 
-        if (externs != NULL){ /* Check if exeterns list is non-empty */
-            /* Write extern labels to the .ext file */
+        /**
+         * @brief Handle external symbols and write to .ext file if any are used
+         * 
+         * Only creates the .ext file if there are external symbols that were 
+         * actually used in the code (value.number >= START_LINE).
+         * Each external reference is written in format: "symbol_name usage_address"
+         * where usage_address is padded to 7 digits.
+         */
+        if (count_symbols_by_type(symbols, SYMBOL_EXTERN) > 0) {
+            /* Create .ext file only when externals exist and were used */
             snprintf(path, sizeof(path), "./outputs/%s.ext", base_name);
             ext = fopen(path, "w+");
             if (!ext) {
-                fprintf("Error opening .ext file for writing: %s\n", ext);
+                fprintf(stderr, "Error opening .ext file for writing: %s\n", path);
                 goto cleanup;
             }
 
-            curr = externs; /* Reuse the pointer to traverse the externs linked list */
+            /* Write each external symbol and its usage addresses */
+            curr = symbols;
             while (curr != NULL) {
-                if (curr->value.number != -1){
-                    fprintf(ext, "%s %07d\n", curr->label, curr->value.number); /* Write label and value */
+                /* Only write externals that were actually used (have an address >= START_LINE) */
+                if (curr->symbol_type == SYMBOL_EXTERN && curr->value.number >= START_LINE) {
+                    fprintf(ext, "%s %07d\n", curr->label, curr->value.number); /* Create .ext line */
                 }
-
-                curr = curr->next; /* Move to the next entry */
+                curr = curr->next;
             }
         }
     }
 
-   /* Cleanup wrapper, to avoid memory leaks */
+   /* Cleanup wrapper, significant to avoid memory leaks */
    cleanup:
-        if(labels) free_label_list(labels);
-        if(externs) free_label_list(externs);
-        if(entries) free_label_list(entries);
+        if(symbols) free_symbol_list(symbols);
         if(ob) fclose(ob);
         if(ent) fclose(ent);
         if(ext) fclose(ext);
