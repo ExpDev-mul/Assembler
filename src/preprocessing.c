@@ -17,7 +17,7 @@
  * @param file The input file to preprocess.
  * @param temp The temporary file to write the preprocessed content to.
  */
-void preprocess(FILE* file, FILE* temp) {
+void preprocess(FILE* file, FILE* temp, SymbolList** macros_ptr) {
     /* Line reading buffers */
     char buffer[BUFFER_SIZE];
     char buffer_copy[BUFFER_SIZE];
@@ -111,5 +111,5 @@ void preprocess(FILE* file, FILE* temp) {
     }
 
     /* Free the memory allocated for the macros linked list */
-    free_symbol_list(macros);
+    *macros_ptr = macros;
 }

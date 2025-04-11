@@ -63,7 +63,7 @@ Word* create_word(uint8_t opcode, uint8_t src_mode, uint8_t src_reg,
  * @param E External bit (ARE).
  * @return Pointer to the newly created `Word`, or NULL if allocation fails.
  */
-Word* create_word_from_number(int8_t number, uint8_t A, uint8_t R, uint8_t E);
+Word* create_word_from_number(int16_t number, uint8_t A, uint8_t R, uint8_t E);
 
 /**
  * @brief Creates a machine word from a number without ARE bits.
@@ -73,7 +73,7 @@ Word* create_word_from_number(int8_t number, uint8_t A, uint8_t R, uint8_t E);
  * @param number The number to store in the word.
  * @return Pointer to the newly created `Word`, or NULL if allocation fails.
  */
-Word* create_word_from_only_number(int8_t number);
+Word* create_word_from_only_number(int16_t number);
 
 /**
  * @brief Frees a machine word from memory.

@@ -36,3 +36,4 @@ FUNC1:  mov r1, r1
 .extern EXT2
 DATA2: .data 0, 10, -10
 STR2:  .string "ZXY!"
+

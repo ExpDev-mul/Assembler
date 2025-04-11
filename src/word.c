@@ -26,7 +26,7 @@ Word* create_word(uint8_t opcode, uint8_t src_mode, uint8_t src_reg,
     return inst;
 }
 
-Word* create_word_from_number(int8_t number, uint8_t A, uint8_t R, uint8_t E) {
+Word* create_word_from_number(int16_t number, uint8_t A, uint8_t R, uint8_t E) {
     Word* inst = (Word*)malloc(sizeof(Word));
     if (inst == NULL) {
         perror("Memory allocation failed");
@@ -45,7 +45,7 @@ Word* create_word_from_number(int8_t number, uint8_t A, uint8_t R, uint8_t E) {
     return inst;
 }
 
-Word* create_word_from_only_number(int8_t number) {
+Word* create_word_from_only_number(int16_t number) {
     Word* inst = (Word*)malloc(sizeof(Word));
     if (inst == NULL) {
         perror("Memory allocation failed");

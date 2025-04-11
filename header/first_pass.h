@@ -18,6 +18,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include "./symbols.h"
+
 /**
  * @brief Performs the first pass of the assembler.
  * 
@@ -26,12 +28,13 @@
  * Any errors encountered during this pass are recorded in the `errors` counter.
  * 
  * @param file The input file to process.
- * @param labels_ptr Pointer to the linked list of labels.
- * @param entries_ptr Pointer to the linked list of entry labels.
- * @param externs_ptr Pointer to the linked list of extern labels.
+ * @param symbols_ptr Pointer to the linked list of labels.
  * @param errors Pointer to the error counter to track the number of errors.
+ * @param number_of_lines Pointer to the variable to store the number of lines in the input file.
+ * @param macros Pointer to the linked list of macros.
  */
 void first_pass(FILE* file, SymbolList** symbols_ptr, 
-                uint8_t* errors, uint8_t* number_of_lines);
+                uint8_t* errors, uint8_t* number_of_lines,
+                SymbolList* macros);
 
 #endif /* FIRST_PASS_H */

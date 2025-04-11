@@ -1,10 +1,9 @@
 #include <string.h>
 
+#include "../header/first_pass.h"
 #include "../header/preprocessing.h"
 #include "../header/assembler.h"
-#include "../header/symbols.h"
 #include "../header/lib.h"
-#include "../header/first_pass.h"
 #include "../header/errors.h"
 #include "../header/validators.h"
 #include "../header/opcode.h"
@@ -23,7 +22,8 @@
  * @param errors Pointer to the error counter to track the number of errors.
  */
 void first_pass(FILE* file, SymbolList** symbols_ptr,
-                uint8_t* errors, uint8_t* number_of_lines) {    
+                uint8_t* errors, uint8_t* number_of_lines,
+                SymbolList* macros) {    
     /* Null check and initialization */
     if (!symbols_ptr) {
         fprintf(stderr, "Error: symbols_ptr is NULL.\n");
@@ -79,6 +79,12 @@ void first_pass(FILE* file, SymbolList** symbols_ptr,
             if (strlen(prefix) == 0) {
                 /* Check for empty label declarations */
                 error_with_code(EMPTY_LABEL_DECLARATION, line, errors);
+                continue;
+            }
+
+            if (is_symbol_exists(macros, prefix)) {
+                /* Check if the label is a macro */
+                error_with_code(LABEL_IS_MACRO_NAME, line, errors);
                 continue;
             }
 

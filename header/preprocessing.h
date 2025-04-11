@@ -24,7 +24,8 @@
  * 
  * @param file The input file to preprocess.
  * @param temp The temporary file to write the preprocessed content to.
+ * @param macros_ptr Pointer to the linked list of macros.
  */
-void preprocess(FILE* file, FILE* temp);
+void preprocess(FILE* file, FILE* temp, SymbolList** macros_ptr);
 
 #endif /* PREPROCESSING_C */

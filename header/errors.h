@@ -51,7 +51,8 @@ enum {
     
     CONFLICTING_ENTRY_AND_EXTERN,   /* Extern and entry cannot have the same name */
     MACRO_ALREADY_DEFINED,          /* Macro with that name already exists */
-    MACRO_NAME_IS_COMMAND          /* Macro name conflicts with a command */
+    MACRO_NAME_IS_COMMAND,          /* Macro name conflicts with a command */
+    LABEL_IS_MACRO_NAME             /* Label name conflicts with a macro name */
 };
 
 /**

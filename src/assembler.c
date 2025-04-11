@@ -14,6 +14,7 @@
 #include "../header/first_pass.h"
 #include "../header/second_pass.h"
 #include "../header/word_list.h"
+#include "../header/symbols.h"
 
 uint8_t errors; /* Prototype for errors counter, accessed widely through this file context */
 
@@ -40,15 +41,18 @@ void assemble(FILE* file, FILE* am, char* base_name) {
     WordList *curr_wl = NULL;              /* Pointer to traverse the data list */
     WordList* curr_wl_nptr = NULL;         /* Temporary pointer */
 
+    SymbolList* macros = NULL; /* Macros that will be modified by preprocess */
+
     /* Step 1: Preprocessing */
-    preprocess(file, preprocessed); /* Expand macros and preprocess the input file */
+    preprocess(file, preprocessed, &macros); /* Expand macros and preprocess the input file */
 
     /* Step 2: First Pass */
     rewind(preprocessed);
 
     number_of_lines = 0; /* Initialize number of lines counter */
     first_pass(preprocessed, &symbols, 
-                &errors, &number_of_lines); /* Extract labels and validate syntax, while counting the number of lines and updating number_of_lines */
+                &errors, &number_of_lines,
+                macros); /* Extract labels and validate syntax, while counting the number of lines and updating number_of_lines */
 
     /* If there are already errors in the first pass, stop the program and perform cleanup */
     if (errors > 0) {

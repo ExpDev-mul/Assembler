@@ -99,11 +99,11 @@ Word* process_operand(int8_t mode, char *arg,
                     ptr->symbol_type == SYMBOL_INSTRUCTION ||
                     ptr->symbol_type == SYMBOL_ENTRY) {
                     /* Create word with the label's actual memory address */
-                    extra_instruction = create_word_from_number(ptr->value.number, 1, 0, 0);
+                    extra_instruction = create_word_from_number(ptr->value.number, 0, 1, 0);
                 }
 
                 if (ptr->symbol_type == SYMBOL_EXTERN){
-                    extra_instruction = create_word_from_number(0, 0, 0, 1); /* External word */
+                    extra_instruction = create_word_from_number(ptr->value.number, 0, 0, 1); /* External word */
                     add_symbol_number(&symbols, arg, START_LINE + *ic, SYMBOL_EXTERN);
                 }
             }
