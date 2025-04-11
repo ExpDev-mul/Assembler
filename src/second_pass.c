@@ -34,6 +34,36 @@ uint8_t get_reg(char *arg) {
 }
 
 /**
+ * @brief Determines the addressing mode based on the argument prefix.
+ * 
+ * This function identifies the addressing mode of an operand based on its prefix.
+ * 
+ * @param arg The argument representing the operand (e.g., r0, #5, &START).
+ * @return The addressing mode as a uint8_t value.
+ */
+uint8_t get_mode(char *arg) {
+    /* Ensure the argument is not NULL */
+    if (arg == NULL) {
+        return 0;
+    }
+
+    /* Determine the addressing mode based on the prefix */
+    if (arg[0] == 'r') {
+        /* Register case (e.g., r0, r2, r9) */
+        return DIRECT_REGISTER_ADRS;
+    } else if (arg[0] == '#') {
+        /* Immediate number case (e.g., #5, #-3) */
+        return IMMEDIATE_ADRS;
+    } else if (arg[0] == '&') {
+        /* Relative addressing case (e.g., &START, &END) */
+        return RELATIVE_ADRS;
+    } else {
+        /* Direct addressing case (e.g., MAIN, END, basically labels) */
+        return DIRECT_ADRS;
+    }
+}
+
+/**
  * @brief Extracts a number from an immediate addressing argument.
  * 
  * This function extracts the numeric value from an argument that uses immediate addressing.
@@ -77,6 +107,7 @@ Word* process_operand(int8_t mode, char *arg,
                       uint8_t *ic, uint8_t *errors) {
     Word *extra_instruction = NULL;
     SymbolList* symbols = *symbols_ptr;
+    SymbolList *ptr = get_symbol_by_label(symbols, arg);
 
     switch (mode) {
         case IMMEDIATE_ADRS:
@@ -90,7 +121,7 @@ Word* process_operand(int8_t mode, char *arg,
 
         case DIRECT_ADRS: {
             /* Direct addressing creates a word with the label's memory address */
-            SymbolList *ptr = get_symbol_by_label(symbols, arg);
+            ptr = get_symbol_by_label(symbols, arg);
             if (ptr != NULL) {
                 /*
                 printf("%s %i %i\n", arg, ptr->symbol_type, ptr->value.number);
@@ -113,7 +144,7 @@ Word* process_operand(int8_t mode, char *arg,
         case RELATIVE_ADRS: {
             /* Relative addressing creates a word with the relative distance */
             arg++; /* Skip the '&' character */
-            SymbolList *ptr = get_symbol_by_label(symbols, arg);
+            ptr = get_symbol_by_label(symbols, arg);
             if (ptr != NULL) {
                 int16_t target_address = ptr->value.number;
                 int16_t current_address = START_LINE + *ic;
@@ -143,17 +174,52 @@ Word* process_operand(int8_t mode, char *arg,
 
 void second_pass(FILE *preprocessed, SymbolList **symbols_ptr, 
                 WordList **inst_list_ptr, WordList **data_list_ptr, 
-                uint8_t *ic, uint8_t *dc, uint8_t *errors, 
-                uint8_t number_of_lines) {
-    /* Dereference pointers into variables with the same names as in the original code */
-    int i; /* Loop variable */
-    SymbolList *symbols = *symbols_ptr;
-    WordList *inst_list = *inst_list_ptr;
-    WordList *data_list = *data_list_ptr;
-    char buffer[BUFFER_SIZE];
-    bool stay_in_line = false;
-    uint8_t line = 0; /* Actual reading line from the file */
-    bool is_command = false;
+                uint8_t *ic, uint8_t *dc, uint8_t *errors) {
+    /* File-level variables and data structures */
+    int i; /* Loop counter for command table traversal */
+    SymbolList *symbols = *symbols_ptr; /* Local symbol table reference */
+    WordList *inst_list = *inst_list_ptr; /* Local instruction list reference */
+    WordList *data_list = *data_list_ptr; /* Local data list reference */
+    char buffer[BUFFER_SIZE]; /* Line reading buffer */
+    bool stay_in_line = false; /* Flag to continue processing current line */
+    uint8_t line = 0; /* Current source file line number */
+    bool is_command = false; /* Flag indicating if current token is a valid command */
+
+    /* String processing variables */
+    char *current; /* Current position in processing buffer */
+    char *number_start; /* Start position of numeric value */
+    char temp; /* Temporary character storage for string manipulation */
+
+    /* Command argument pointers */
+    char *arg1; /* First command argument */
+    char *arg2; /* Second command argument */
+    char *arg3; /* Third argument (for error checking) */
+    char *arg; /* Current argument being processed */
+
+    /* Command processing data */
+    uint8_t opcode; /* Command operation code */
+    uint8_t funct; /* Command function code */
+    int8_t src_mode; /* Source operand addressing mode */
+    uint8_t src_reg; /* Source register number */
+    int8_t dest_mode; /* Destination operand addressing mode */
+    uint8_t dest_reg; /* Destination register number */
+
+    /* Error tracking */
+    uint8_t before_errors; /* Error count before processing current command */
+
+    /* Word generation */
+    Word* extra_instruction_one; /* Additional word for source operand */
+    Word* extra_instruction_two; /* Additional word for destination operand */
+    Word* instruction; /* Main instruction word */
+
+    /* Directive processing */
+    char *metadata; /* Directive data (for .data and .string) */
+    Command cmd; /* Current command being processed */
+
+    /* Mode tracking */
+    bool src_mode_defined; /* Flag indicating source mode was set */
+    bool dest_mode_defined; /* Flag indicating destination mode was set */
+
     
     while (1){
         char *command; /* The first token separated by a comma is our actual command. */
@@ -188,17 +254,17 @@ void second_pass(FILE *preprocessed, SymbolList **symbols_ptr,
 
             if (!strcmp(command, "data")) {
                 /* Handle .data directive */
-                char *metadata = strtok(NULL, "");
+                metadata = strtok(NULL, "");
                 if (metadata == NULL) {
                     error_with_code(MISSING_DATA, line, errors);
                     return;
                 }
 
-                char *current = metadata;
+                current = metadata;
                 while (*current != '\0') {
                     skip_leading_spaces(&current); /* Skip leading spaces */
 
-                    char *number_start = current; /* Mark the start of the number */
+                    number_start = current; /* Mark the start of the number */
 
                     /* Find the end of the current number */
                     while (*current != ',' && *current != '\0') {
@@ -206,7 +272,7 @@ void second_pass(FILE *preprocessed, SymbolList **symbols_ptr,
                     }
 
                     /* Null-terminate the current number */
-                    char temp = *current;
+                    temp = *current;
                     *current = '\0';
 
                     /* Validate and process the number */
@@ -215,7 +281,7 @@ void second_pass(FILE *preprocessed, SymbolList **symbols_ptr,
                         break;
                     }
 
-                    Word *instruction = create_word_from_only_number((int8_t)atoi(number_start));
+                    instruction = create_word_from_only_number((int8_t)atoi(number_start));
                     add_word(&data_list, instruction); /* Add the instruction to the data list */
                     (*dc)++;
 
@@ -227,7 +293,7 @@ void second_pass(FILE *preprocessed, SymbolList **symbols_ptr,
                 }
             } else if (!strcmp(command, "string")) {
                 /* Handle .string directive */
-                char *metadata = strtok(NULL, "");
+                metadata = strtok(NULL, "");
                 if (metadata == NULL) {
                     error_with_code(MISSING_DATA, line, errors);
                     return;
@@ -239,14 +305,14 @@ void second_pass(FILE *preprocessed, SymbolList **symbols_ptr,
                 } else {
                     metadata++; /* Skip the opening double quote */
                     while (*metadata != '"' && *metadata != '\0') {
-                        Word *instruction = create_word_from_only_number((int8_t)(*metadata));
+                        instruction = create_word_from_only_number((int8_t)(*metadata));
                         add_word(&data_list, instruction); /* Add the instruction to the data list */
                         metadata++;
                         (*dc)++;
                     }
 
                     /* Add null terminator */
-                    Word *instruction = create_word_from_only_number(0);
+                    instruction = create_word_from_only_number(0);
                     add_word(&data_list, instruction); /* Add the null terminator to the data list */
                     (*dc)++;
                 }
@@ -255,32 +321,32 @@ void second_pass(FILE *preprocessed, SymbolList **symbols_ptr,
             continue;
         }
 
-        char *arg1 = strtok(NULL, ","); /* Tokenize 1st argument */
+        arg1 = strtok(NULL, ","); /* Tokenize 1st argument */
         skip_leading_spaces(&arg1); /* Skip leading spaces of the arg1 argument (e.g, from __r0 -> r0 ) */
-        char *arg2 = strtok(NULL, ","); /* Tokenize 2nd argument */
+        arg2 = strtok(NULL, ","); /* Tokenize 2nd argument */
         skip_leading_spaces(&arg2); /* Skip leading spaces of the arg2 argument (e.g, from ___#5 -> #5 ) */
-        char *arg3 = strtok(NULL, ","); /* Extraneous tokenized argument, mainly for extraneous text checking */
+        arg3 = strtok(NULL, ","); /* Extraneous tokenized argument, mainly for extraneous text checking */
 
         /* printf("%s %s %s\n", command, arg1, arg2); */
 
         /* Loop through commands table to match the command */
         for (i = 0; i < NUM_COMMANDS; i++) {
-            Command cmd = commands[i]; /* Store the command metadata */
+            cmd = commands[i]; /* Store the command metadata */
             /* Check whether the command and the read command match with their names */
             if (!strcmp(command, cmd.name)) {
                 is_command = true;
 
                 /* Declare variables at the beginning of the scope */
-                uint8_t opcode = cmd.opcode; /* Command opcode */
-                uint8_t funct = cmd.funct;   /* Command function code */
-                int8_t src_mode = -1;        /* Source addressing mode (-1 indicates uninitialized) */
-                uint8_t src_reg = 0;         /* Source register */
-                int8_t dest_mode = -1;       /* Destination addressing mode (-1 indicates uninitialized) */
-                uint8_t dest_reg = 0;        /* Destination register */
-                uint8_t before_errors = *errors; /* Track errors before processing the command */
-                Word *extra_instruction_one = NULL; /* Extra instruction for certain addressing modes */
-                Word *extra_instruction_two = NULL; /* Extra instruction for certain addressing modes */
-                char *arg = NULL;            /* Argument pointer for processing operands */
+                opcode = cmd.opcode; /* Command opcode */
+                funct = cmd.funct;   /* Command function code */
+                src_mode = -1;        /* Source addressing mode (-1 indicates uninitialized) */
+                src_reg = 0;         /* Source register */
+                dest_mode = -1;       /* Destination addressing mode (-1 indicates uninitialized) */
+                dest_reg = 0;        /* Destination register */
+                before_errors = *errors; /* Track errors before processing the command */
+                extra_instruction_one = NULL; /* Extra instruction for certain addressing modes */
+                extra_instruction_two = NULL; /* Extra instruction for certain addressing modes */
+                arg = NULL;            /* Argument pointer for processing operands */
 
                 /* Handle commands with different operand numbers */
                 switch (cmd.operands_num){ /* Respect different operand numbers */
@@ -378,13 +444,13 @@ void second_pass(FILE *preprocessed, SymbolList **symbols_ptr,
                     continue;
                 }
 
-                bool src_mode_defined = (src_mode != -1);
-                bool dest_mode_defined = (dest_mode != -1);
+                src_mode_defined = (src_mode != -1);
+                dest_mode_defined = (dest_mode != -1);
                 /* Return the modes back to 0 if they were -1 (which was temporary flagging for the absence of such operand!) */
                 if (src_mode == -1){ src_mode = 0; }
                 if (dest_mode == -1){ dest_mode = 0; }
 
-                Word *instruction = create_word(
+                instruction = create_word(
                     opcode, src_mode, src_reg, 
                     dest_mode, dest_reg,
                     funct, 1, 0, 0

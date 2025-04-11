@@ -114,5 +114,14 @@
   * @param head Symbol table to print
   */
  void print_symbols(SymbolList *head);
+
+ 
+/**
+* @brief Counts the number of symbols of a specific type
+* @param head Symbol table head
+* @param symbol_type Type of symbols to count
+* @return Number of symbols of the specified type
+*/
+ int count_symbols_by_type(SymbolList *head, SymbolType symbol_type);
  
  #endif /* SYMBOLS_H */

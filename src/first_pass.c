@@ -43,8 +43,8 @@ void first_pass(FILE* file, SymbolList** symbols_ptr,
     int i; /* Loop variable */
     bool stay_in_line = false;
     SymbolList* line_label = NULL; /* Pointer to the line label, when staying in line */
-    uint8_t ic = 0;
-    uint8_t dc = 0;
+    uint8_t ic = 0; /* Instruction counter */
+    uint8_t dc = 0; /* Data counter */
     while (1) {
         /* Read a line from the file */
         if (stay_in_line){

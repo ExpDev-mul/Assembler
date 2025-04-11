@@ -20,28 +20,25 @@ uint8_t errors; /* Prototype for errors counter, accessed widely through this fi
 
 void assemble(FILE* file, FILE* am, char* base_name) {
     /* Variable declarations */
-    uint8_t line = START_LINE;      /* Current line number */
-
-    /* Note: Our symbols are not a single table but rather split across multiple lists for every symbol decoding possible */
+    uint8_t line = START_LINE; /* Current line number */
     SymbolList *symbols = NULL;
-
-    WordList *inst_list = NULL;     /* Linked list for instruction instructions */
-    WordList *data_list = NULL;     /* Linked list for data instructions */
-    FILE *preprocessed = am;        /* Preprocessed is equivalent to 'after macro' in this context */
-    uint8_t errors = 0;             /* Counter for errors during runtime */
-    uint8_t ic = 0;                 /* Instruction counter */
-    uint8_t dc = 0;                 /* Data counter */
-    FILE* ob = NULL;                       /* .ob file, to write down on */
-    FILE* ent = NULL;                      /* .ent file, to write down on */
-    FILE* ext = NULL;                      /* .ext file, to write down on */
-    char path[256];                 /* Path buffer for output files */
-    uint8_t number_of_lines;        /* Number of lines in the preprocessed file */
-    int ic_length;                  /* Length of the instruction counter (IC) */
-    int padding;                    /* Computed padding for IC and DC display */
-    WordList *curr_wl = NULL;              /* Pointer to traverse the data list */
-    WordList* curr_wl_nptr = NULL;         /* Temporary pointer */
-
+    WordList *inst_list = NULL; /* Linked list for instruction instructions */
+    WordList *data_list = NULL; /* Linked list for data instructions */
+    FILE *preprocessed = am; /* Preprocessed is equivalent to 'after macro' in this context */
+    uint8_t errors = 0; /* Counter for errors during runtime */
+    uint8_t ic = 0; /* Instruction counter */
+    uint8_t dc = 0; /* Data counter */
+    FILE* ob = NULL; /* .ob file, to write down on */
+    FILE* ent = NULL; /* .ent file, to write down on */
+    FILE* ext = NULL; /* .ext file, to write down on */
+    char path[256]; /* Path buffer for output files */
+    uint8_t number_of_lines; /* Number of lines in the preprocessed file */
+    int ic_length;/* Length of the instruction counter (IC) */
+    int padding; /* Computed padding for IC and DC display */
+    WordList *curr_wl = NULL; /* Pointer to traverse the data list */
+    WordList* curr_wl_nptr = NULL; /* Temporary pointer */
     SymbolList* macros = NULL; /* Macros that will be modified by preprocess */
+    SymbolList* curr; /* SymbolList iterator variable */
 
     /* Step 1: Preprocessing */
     preprocess(file, preprocessed, &macros); /* Expand macros and preprocess the input file */
@@ -64,8 +61,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
     rewind(preprocessed); /* Rewind the preprocessed file (also the after macro!) to be read again by second_pass */
     second_pass(preprocessed, &symbols, 
                 &inst_list, &data_list, 
-                &ic, &dc, &errors, 
-                number_of_lines); /* Perform second pass */
+                &ic, &dc, &errors); /* Perform second pass */
 
     /* Only if no errors occured, create output files */
     if (errors == 0){
@@ -95,7 +91,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
             print_word_hex(curr_wl->data.word, &line, ob); /* Output the data instruction to the .ob file */
 
             /* Store the current node in a temporary pointer for cleanup */
-            WordList* curr_wl_nptr = curr_wl;
+            curr_wl_nptr = curr_wl;
 
             /* Move to the next node in the linked list */
             curr_wl = curr_wl->next;
@@ -119,7 +115,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
             print_word_hex(curr_wl->data.word, &line, ob); /* Output the data instruction to the .ob file */
 
             /* Store the current node in a temporary pointer for cleanup */
-            WordList* curr_wl_nptr = curr_wl;
+            curr_wl_nptr = curr_wl;
 
             /* Move to the next node in the linked list */
             curr_wl = curr_wl->next;
@@ -155,8 +151,8 @@ void assemble(FILE* file, FILE* am, char* base_name) {
          * Each entry is written in format: "symbol_name memory_address"
          * where memory_address is padded to 7 digits.
          */
-        SymbolList *curr; /* SymbolList iterator variable */
-        if (count_symbols_by_type(symbols, SYMBOL_ENTRY) > 0) {
+
+         if (count_symbols_by_type(symbols, SYMBOL_ENTRY) > 0) {
             /* Create .ent file only when entries exist */
             snprintf(path, sizeof(path), "./outputs/%s.ent", base_name);
             ent = fopen(path, "w+");

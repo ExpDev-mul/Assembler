@@ -24,11 +24,10 @@
  * @param ic Instruction counter
  * @param dc Data counter
  * @param errors Error counter
- * @param number_of_lines Total source lines
  */
 void second_pass(FILE *preprocessed, SymbolList **symbols_ptr, 
                 WordList **inst_list, WordList **data_list, 
                 uint8_t *ic, uint8_t *dc, 
-                uint8_t *errors, uint8_t number_of_lines);
+                uint8_t *errors);
 
 #endif /* SECOND_PASS_H */
