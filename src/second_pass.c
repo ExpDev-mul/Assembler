@@ -167,6 +167,7 @@ void second_pass(FILE *preprocessed, SymbolList **symbols_ptr,
             
             buffer[strcspn(buffer, "\n")] = '\0'; /* Remove newline character automatically inserted by fgets */
             command = strtok(buffer, " "); /* Tokenize the command (e.g, mov, add, stop) */
+            skip_leading_spaces(&command); /* Skip leading spaces for command */
             line++;
         }
         
@@ -226,7 +227,7 @@ void second_pass(FILE *preprocessed, SymbolList **symbols_ptr,
                 }
             } else if (!strcmp(command, "string")) {
                 /* Handle .string directive */
-                char *metadata = strtok(NULL, " ");
+                char *metadata = strtok(NULL, "");
                 if (metadata == NULL) {
                     error_with_code(MISSING_DATA, line, errors);
                     return;
@@ -265,7 +266,6 @@ void second_pass(FILE *preprocessed, SymbolList **symbols_ptr,
         /* Loop through commands table to match the command */
         for (i = 0; i < NUM_COMMANDS; i++) {
             Command cmd = commands[i]; /* Store the command metadata */
-
             /* Check whether the command and the read command match with their names */
             if (!strcmp(command, cmd.name)) {
                 is_command = true;

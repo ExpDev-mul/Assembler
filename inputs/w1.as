@@ -1,4 +1,4 @@
- Example input file for testing assembler functionality
+; Example input file for testing assembler functionality
 
 .entry START
 .extern EXTERNAL_LABEL
