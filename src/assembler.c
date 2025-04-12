@@ -65,7 +65,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
 
     /* Only if no errors occured, create output files */
     if (errors == 0){
-        snprintf(path, sizeof(path), "./outputs/%s.ob", base_name); /* Set the proper path */
+        snprintf(path, sizeof(path), "../outputs/%s.ob", base_name); /* Set the proper path */
         ob = fopen(path, "w+"); /* Open the path with writing+ perms */
         if (!ob) {
             fprintf(stderr, "Error opening .ob file for writing: %s\n", path);
@@ -154,7 +154,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
 
          if (count_symbols_by_type(symbols, SYMBOL_ENTRY) > 0) {
             /* Create .ent file only when entries exist */
-            snprintf(path, sizeof(path), "./outputs/%s.ent", base_name);
+            snprintf(path, sizeof(path), "../outputs/%s.ent", base_name);
             ent = fopen(path, "w+");
             if (!ent) {
                 fprintf(stderr, "Error opening .ent file for writing: %s\n", path);
@@ -181,7 +181,7 @@ void assemble(FILE* file, FILE* am, char* base_name) {
          */
         if (count_symbols_by_type(symbols, SYMBOL_EXTERN) > 0) {
             /* Create .ext file only when externals exist and were used */
-            snprintf(path, sizeof(path), "./outputs/%s.ext", base_name);
+            snprintf(path, sizeof(path), "../outputs/%s.ext", base_name);
             ext = fopen(path, "w+");
             if (!ext) {
                 fprintf(stderr, "Error opening .ext file for writing: %s\n", path);

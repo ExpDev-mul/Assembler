@@ -21,7 +21,7 @@ void process_file(const char *input_file) {
 
     /* Construct the full path to the input file in the inputs/ directory */
     char input_path[256];
-    int res = snprintf(input_path, sizeof(input_path), "./inputs/%s.as", input_file);
+    int res = snprintf(input_path, sizeof(input_path), "../inputs/%s.as", input_file);
     if (res < 0 || res >= sizeof(input_path)) {
         fprintf(stderr, "Error creating input file path\n");
         return;
@@ -40,7 +40,7 @@ void process_file(const char *input_file) {
     /* Create output directory path and file paths */
     char path[256];
 
-    res = snprintf(path, sizeof(path), "./outputs/%s.am", base_name);
+    res = snprintf(path, sizeof(path), "../outputs/%s.am", base_name);
     if (res < 0 || res >= sizeof(path)) {
         fprintf(stderr, "Error creating .am file path\n");
         goto cleanup;
