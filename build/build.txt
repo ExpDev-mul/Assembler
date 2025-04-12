@@ -1,0 +1,2 @@
+All output files will be located within here.
+Any changes to this directory must reflect on the path-linking of both makefile and source/header files.
